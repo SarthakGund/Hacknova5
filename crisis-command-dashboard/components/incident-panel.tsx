@@ -10,6 +10,7 @@ interface IncidentPanelProps {
     status: string
     time: string
     responders: string[]
+    is_verified?: boolean
   }>
   selectedIncident: any
   onSelectIncident: (incident: any) => void
@@ -35,14 +36,19 @@ export default function IncidentPanel({ incidents, selectedIncident, onSelectInc
         <button
           key={incident.id}
           onClick={() => onSelectIncident(incident)}
-          className={`w-full text-left p-3 rounded-lg transition-all ${
-            selectedIncident?.id === incident.id
-              ? "bg-accent/20 border border-accent"
-              : "bg-muted/30 border border-transparent hover:bg-muted/50"
-          }`}
+          className={`w-full text-left p-3 rounded-lg transition-all ${selectedIncident?.id === incident.id
+            ? "bg-accent/20 border border-accent"
+            : "bg-muted/30 border border-transparent hover:bg-muted/50"
+            }`}
         >
           <div className="flex items-start justify-between mb-2">
             <h3 className="font-semibold text-sm text-foreground flex-1 pr-2">{incident.title}</h3>
+            {incident.is_verified && (
+              <div className="flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded-full mr-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+                <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-tight">Verified</span>
+              </div>
+            )}
             <span className={`text-xs px-2 py-1 rounded ${getSeverityColor(incident.severity)}`}>
               {incident.severity.toUpperCase()}
             </span>

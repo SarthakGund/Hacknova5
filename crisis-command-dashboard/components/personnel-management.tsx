@@ -6,7 +6,7 @@ import { authAPI, personnelAPI } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { useWebSocket } from "@/hooks/use-websocket"
 
-export function PersonnelManagement() {
+export function PersonnelManagement({ onSelectPersonnel, selectedPersonnelId }: { onSelectPersonnel?: (person: any) => void, selectedPersonnelId?: number }) {
     const [personnel, setPersonnel] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [showAddForm, setShowAddForm] = useState(false)
@@ -239,18 +239,29 @@ export function PersonnelManagement() {
                         </div>
                     ) : (
                         personnel.map((person) => (
-                            <div key={person.id} className="bg-muted/40 border border-border rounded-2xl p-3 flex items-center justify-between hover:border-primary/30 transition-all group">
+                            <div
+                                key={person.id}
+                                className={cn(
+                                    "bg-muted/40 border border-border rounded-2xl p-3 flex items-center justify-between transition-all group",
+                                    selectedPersonnelId === person.id ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "hover:border-primary/30"
+                                )}
+                            >
                                 <div className="flex items-center gap-3">
                                     <div className={cn(
-                                        "w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm",
+                                        "w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm transition-transform active:scale-90 cursor-pointer",
                                         person.status === 'available' ? "bg-success" :
                                             person.status === 'on-scene' ? "bg-destructive shadow-destructive/20" :
                                                 "bg-warning shadow-warning/20"
-                                    )}>
+                                    )} onClick={() => onSelectPersonnel?.(person)}>
                                         {person.name.charAt(0)}
                                     </div>
                                     <div>
-                                        <div className="font-semibold text-sm">{person.name}</div>
+                                        <div className="font-semibold text-sm flex items-center gap-1">
+                                            {person.name}
+                                            {person.lat && person.lng && (
+                                                <span className="text-[8px] bg-primary/10 text-primary px-1 rounded">LIVE</span>
+                                            )}
+                                        </div>
                                         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                                             <Shield className="w-3 h-3" />
                                             {person.role}
@@ -264,19 +275,35 @@ export function PersonnelManagement() {
                                                 {person.status}
                                             </span>
                                         </div>
+                                        {person.lat && person.lng && (
+                                            <div className="text-[9px] text-muted-foreground/60 mt-0.5 font-mono">
+                                                {person.lat.toFixed(4)}, {person.lng.toFixed(4)}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                    {person.phone && (
-                                        <button className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground hover:text-primary transition-all">
-                                            <Phone className="w-4 h-4" />
+                                <div className="flex gap-1">
+                                    {person.lat && person.lng && (
+                                        <button
+                                            onClick={() => onSelectPersonnel?.(person)}
+                                            className={cn(
+                                                "p-1.5 rounded-lg transition-all",
+                                                selectedPersonnelId === person.id
+                                                    ? "bg-primary text-primary-foreground"
+                                                    : "bg-primary/10 text-primary hover:bg-primary/20"
+                                            )}
+                                            title="Locate on Map"
+                                        >
+                                            <Shield className="w-4 h-4" />
                                         </button>
                                     )}
-                                    {person.email && (
-                                        <button className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground hover:text-primary transition-all">
-                                            <Mail className="w-4 h-4" />
-                                        </button>
-                                    )}
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                        {person.phone && (
+                                            <button className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground hover:text-primary transition-all">
+                                                <Phone className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ))

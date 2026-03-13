@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react"
 import { Filter, MapPin, Clock, AlertCircle, Loader2 } from "lucide-react"
 import UserMap from "./user-map"
-import { incidentsAPI } from "@/lib/api"
+import { incidentsAPI, resourcesAPI, alertsAPI } from "@/lib/api"
 import { useWebSocket } from "@/hooks/use-websocket"
 
 export default function NearbyAlerts() {
     const [selectedFilter, setSelectedFilter] = useState<string>("all")
     const [alerts, setAlerts] = useState<any[]>([])
+    const [resources, setResources] = useState<any[]>([])
+    const [zones, setZones] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
 
@@ -50,12 +52,21 @@ export default function NearbyAlerts() {
     }
 
     // Fetch alerts (incidents)
-    const fetchAlerts = async () => {
+    const fetchData = async () => {
         try {
             setLoading(true)
-            const response = await incidentsAPI.getAll()
-            if (response.success) {
-                const formattedAlerts = response.incidents.map((inc: any) => {
+            
+            // Parallel fetch for speed
+            const [params, incidentsRes, resourcesRes, zonesRes] = await Promise.all([
+                 Promise.resolve(), // Just to keep structure if needed
+                 incidentsAPI.getAll(),
+                 resourcesAPI.getPublic(),
+                 alertsAPI.getZones(true)
+            ])
+
+            if (incidentsRes.success) {
+                const activeIncidents = incidentsRes.incidents.filter((inc: any) => inc.status !== 'resolved' && inc.status !== 'closed')
+                const formattedAlerts = activeIncidents.map((inc: any) => {
                     const distance = userLocation
                         ? calculateDistance(userLocation.lat, userLocation.lng, inc.lat, inc.lng)
                         : null
@@ -86,8 +97,17 @@ export default function NearbyAlerts() {
 
                 setAlerts(nearbyAlerts)
             }
+
+            if (resourcesRes.success) {
+                setResources(resourcesRes.resources)
+            }
+
+            if (zonesRes.success) {
+                setZones(zonesRes.zones)
+            }
+
         } catch (error) {
-            console.error("Error fetching alerts:", error)
+            console.error("Error fetching data:", error)
         } finally {
             setLoading(false)
         }
@@ -123,9 +143,9 @@ export default function NearbyAlerts() {
     }, [])
 
     useEffect(() => {
-        // Fetch alerts once we have user location
+        // Fetch data once we have user location
         if (userLocation) {
-            fetchAlerts()
+            fetchData()
         }
     }, [userLocation])
 
@@ -134,16 +154,17 @@ export default function NearbyAlerts() {
 
         const handleIncidentUpdate = (data: any) => {
             console.log("WebSocket incident update:", data)
-            // Refresh the entire list for simplicity, or we could update specifically
-            fetchAlerts()
+            // Refresh the entire list
+            fetchData()
         }
 
         on('incident_updated', handleIncidentUpdate)
-        // Also listen for new incidents if the backend emits 'incident_created'
         on('incident_created', handleIncidentUpdate)
+        on('resource_updated', fetchData) // Refresh if resources change
+
 
         return () => {
-            // cleanup is handled by hook but good practice to show intent
+            // cleanup is handled by hook
         }
     }, [isConnected, on, userLocation])
 
@@ -190,7 +211,7 @@ export default function NearbyAlerts() {
                         <Loader2 className="w-8 h-8 animate-spin text-primary" />
                     </div>
                 ) : (
-                    <UserMap incidents={filteredAlerts} />
+                    <UserMap incidents={filteredAlerts} resources={resources} zones={zones} />
                 )}
             </div>
 

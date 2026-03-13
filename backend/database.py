@@ -3,8 +3,12 @@ from datetime import datetime
 from config import Config
 
 def get_db_connection():
-    """Create and return a database connection"""
-    conn = sqlite3.connect(Config.DATABASE_PATH)
+    """Create and return a database connection with WAL mode enabled"""
+    conn = sqlite3.connect(Config.DATABASE_PATH, timeout=30)
+    # Enable Write-Ahead Logging (WAL) for better concurrency
+    conn.execute('PRAGMA journal_mode=WAL')
+    # Extra safety for busy timeouts
+    conn.execute('PRAGMA busy_timeout=30000')
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -44,7 +48,13 @@ def init_db():
             location_name TEXT,
             report_source TEXT,
             reported_by INTEGER,
+            reporter_phone TEXT,
             victims_count INTEGER DEFAULT 0,
+            report_count INTEGER DEFAULT 1,
+            sosmesh_messages TEXT,
+            is_verified BOOLEAN DEFAULT 0,
+            verification_score INTEGER DEFAULT 0,
+            ai_analysis TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             resolved_at TIMESTAMP
@@ -76,6 +86,9 @@ def init_db():
             name TEXT NOT NULL,
             type TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'available',
+            lat REAL DEFAULT 0,
+            lng REAL DEFAULT 0,
+            is_public BOOLEAN DEFAULT 0,
             assigned_incident_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

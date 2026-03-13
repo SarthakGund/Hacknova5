@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from database import get_db_connection
 from datetime import datetime
 import secrets
+import sqlite3
 
 auth_bp = Blueprint('auth', __name__)
 

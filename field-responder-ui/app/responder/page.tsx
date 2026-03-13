@@ -15,6 +15,7 @@ import ProfileView from "@/components/profile-view"
 export default function ResponderPage() {
     const router = useRouter()
     const [currentUser, setCurrentUser] = useState<any>(null)
+    const [personnelId, setPersonnelId] = useState<number | null>(null)
     const [activeTab, setActiveTab] = useState("mission")
 
     // Check authentication
@@ -36,10 +37,31 @@ export default function ResponderPage() {
         }
 
         setCurrentUser(user)
+
+        // Fetch personnel ID
+        const fetchPersonnelId = async () => {
+            try {
+                // Determine API base URL - ensure it matches what other components use
+                const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+                const response = await fetch(`${API_BASE_URL}/personnel/user/${user.id}`, {
+                    headers: {
+                        'ngrok-skip-browser-warning': 'true',
+                    },
+                });
+                const data = await response.json();
+                if (data.success && data.personnel) {
+                    setPersonnelId(data.personnel.id);
+                }
+            } catch (error) {
+                console.error("Failed to fetch personnel ID", error);
+            }
+        };
+        fetchPersonnelId();
+
     }, [router])
 
-    // Start location pulse with actual user ID
-    useResponderLocation(currentUser?.id || 1, !!currentUser)
+    // Start location pulse with actual PERSONNEL ID
+    useResponderLocation(personnelId, !!personnelId)
 
     const renderView = () => {
         switch (activeTab) {

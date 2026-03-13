@@ -1,13 +1,15 @@
 "use client"
 
-import { User, Bell, Heart, MapPin, Phone, Settings, ChevronRight, Moon, Sun } from "lucide-react"
+import { LogOut, ChevronRight, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useMode } from "@/contexts/mode-context"
 
 export default function UserProfile() {
     const { theme, setTheme } = useTheme()
+    const router = useRouter()
     const [mounted, setMounted] = useState(false)
     const { toggleMode } = useMode()
     const [tapCount, setTapCount] = useState(0)
@@ -16,6 +18,12 @@ export default function UserProfile() {
     useEffect(() => {
         setMounted(true)
     }, [])
+
+    const handleLogout = () => {
+        localStorage.removeItem('authToken')
+        localStorage.removeItem('currentUser')
+        router.push('/')
+    }
 
     // Triple-tap detection
     const handleVersionTap = () => {
@@ -36,18 +44,7 @@ export default function UserProfile() {
         setShowModeSwitch(false)
     }
 
-    const menuItems = [
-        { icon: Bell, label: "Notifications", badge: "2", action: () => { } },
-        { icon: Heart, label: "Emergency Contacts", action: () => { } },
-        { icon: MapPin, label: "Saved Locations", action: () => { } },
-        { icon: Phone, label: "Emergency Numbers", action: () => { } },
-        { icon: Settings, label: "Settings", action: () => { } },
-    ]
 
-    const incidentHistory = [
-        { id: "INC-2845", type: "Medical", status: "Resolved", date: "2 days ago" },
-        { id: "INC-2801", type: "Fire", status: "Resolved", date: "1 week ago" },
-    ]
 
     return (
         <div className="flex flex-col h-full bg-background pb-20 overflow-y-auto">
@@ -72,17 +69,6 @@ export default function UserProfile() {
                         </div>
                     </div>
 
-                    {/* Quick Stats */}
-                    <div className="grid grid-cols-2 gap-2">
-                        <div className="card-elevated rounded-2xl p-3 text-center shadow-apple">
-                            <div className="text-lg font-bold">2</div>
-                            <div className="text-[10px] text-muted-foreground leading-tight">Reports Filed</div>
-                        </div>
-                        <div className="card-elevated rounded-2xl p-3 text-center shadow-apple">
-                            <div className="text-lg font-bold">100%</div>
-                            <div className="text-[10px] text-muted-foreground leading-tight">Response Rate</div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -135,54 +121,20 @@ export default function UserProfile() {
                     )}
                 </div>
 
-                {/* Menu Items */}
+                {/* Menu Items - Sign Out Only */}
                 <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                    {menuItems.map((item, index) => {
-                        const Icon = item.icon
-                        return (
-                            <button
-                                key={item.label}
-                                onClick={item.action}
-                                className={cn(
-                                    "w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/50 transition-all active:scale-[0.99]",
-                                    index !== menuItems.length - 1 && "border-b border-border"
-                                )}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Icon className="w-5 h-5" />
-                                    <span className="font-medium">{item.label}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    {item.badge && (
-                                        <span className="px-2 py-0.5 bg-accent text-accent-foreground text-xs font-semibold rounded-full">
-                                            {item.badge}
-                                        </span>
-                                    )}
-                                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                                </div>
-                            </button>
-                        )
-                    })}
-                </div>
-
-                {/* Incident History */}
-                <div className="bg-card border border-border rounded-2xl p-4">
-                    <h3 className="font-semibold mb-3">Recent Reports</h3>
-                    <div className="space-y-3">
-                        {incidentHistory.map((incident) => (
-                            <div key={incident.id} className="flex items-start gap-3 pb-3 border-b border-border last:border-0 last:pb-0">
-                                <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium">{incident.type} Emergency</div>
-                                    <div className="text-xs text-muted-foreground">ID: {incident.id}</div>
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-xs text-success font-semibold">{incident.status}</div>
-                                    <div className="text-xs text-muted-foreground">{incident.date}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/50 transition-all active:scale-[0.99] text-accent"
+                    >
+                        <div className="flex items-center gap-3">
+                            <LogOut className="w-5 h-5" />
+                            <span className="font-medium">Sign Out</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                    </button>
                 </div>
 
                 {/* Version Info - Triple Tap to Switch Mode */}
@@ -190,9 +142,9 @@ export default function UserProfile() {
                     onClick={handleVersionTap}
                     className="text-center text-xs text-muted-foreground py-4 cursor-pointer select-none"
                 >
-                    Field Responder v2.1.0
+                    ResQnet v2.1.0
                     <br />
-                    © 2026 Crisis Management System
+                    © 2026 ResQnet
                 </div>
             </div>
 

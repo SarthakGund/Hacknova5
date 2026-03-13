@@ -1,6 +1,6 @@
 "use client"
 
-import { X, AlertTriangle, Users, Truck, Clock, FileText, Radio, MessageSquare, Smartphone, Wifi } from "lucide-react"
+import { X, AlertTriangle, Users, Truck, Clock, FileText, Radio, MessageSquare, Smartphone, Wifi, CheckCircle } from "lucide-react"
 
 interface IncidentDetailModalProps {
   incident: {
@@ -18,6 +18,7 @@ interface IncidentDetailModalProps {
   }
   isOpen: boolean
   onClose: () => void
+  onConfirmResolution?: (id: number) => void
 }
 
 export default function IncidentDetailModal({ incident, isOpen, onClose }: IncidentDetailModalProps) {
@@ -158,7 +159,23 @@ export default function IncidentDetailModal({ incident, isOpen, onClose }: Incid
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border flex-shrink-0 bg-muted/20">
+        <div className="p-4 border-t border-border flex-shrink-0 bg-muted/20 space-y-3">
+          {incident.status === 'pending_review' && (
+             <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 rounded-lg">
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 mb-2 font-medium">
+                   <AlertTriangle className="w-3 h-3 inline mr-1" />
+                   Review Required: Responder submitted for resolution.
+                </p>
+                <button 
+                  onClick={() => onConfirmResolution && onConfirmResolution(incident.id)}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-4 rounded transition-colors flex items-center justify-center gap-2"
+                >
+                  <CheckCircle className="w-3 h-3" />
+                  Confirm Resolution & Release Resources
+                </button>
+             </div>
+          )}
+
           <div className="text-xs text-muted-foreground mb-2">
             <span className="font-semibold text-accent">{incident.arrivedUnits}</span> of{" "}
             <span className="font-semibold text-accent">{incident.totalUnits}</span> units arrived

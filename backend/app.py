@@ -14,7 +14,7 @@ Config.init_app(app)
 CORS(app, origins=Config.CORS_ORIGINS, supports_credentials=True)
 
 # Initialize SocketIO for WebSocket support
-socketio = SocketIO(app, cors_allowed_origins=Config.CORS_ORIGINS, async_mode='gevent')
+socketio = SocketIO(app, cors_allowed_origins=Config.CORS_ORIGINS)
 
 # Import and register blueprints
 from routes.incidents import incidents_bp
@@ -24,6 +24,9 @@ from routes.communications import comms_bp
 from routes.analytics import analytics_bp
 from routes.notifications import notifications_bp
 from routes.auth import auth_bp
+from routes.resources import resources_bp
+from routes.sos_mesh import sos_mesh_bp
+from routes.sms import sms_bp
 
 app.register_blueprint(auth_bp, url_prefix='/api')
 app.register_blueprint(incidents_bp, url_prefix='/api')
@@ -32,6 +35,10 @@ app.register_blueprint(alerts_bp, url_prefix='/api')
 app.register_blueprint(comms_bp, url_prefix='/api')
 app.register_blueprint(analytics_bp, url_prefix='/api')
 app.register_blueprint(notifications_bp, url_prefix='/api')
+app.register_blueprint(resources_bp, url_prefix='/api')
+app.register_blueprint(sos_mesh_bp, url_prefix='/api')
+app.register_blueprint(sms_bp, url_prefix='/api')
+
 
 # Root endpoint
 @app.route('/')
@@ -47,6 +54,8 @@ def index():
             'communications': '/api/comms',
             'analytics': '/api/analytics',
             'notifications': '/api/notifications',
+            'sosmesh': '/api/sosmesh',
+            'sms_webhook': '/api/sms/webhook',
             'websocket': 'ws://localhost:5000'
         }
     })

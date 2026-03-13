@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react"
 import dynamic from "next/dynamic"
-import { AlertTriangle, BarChart3, MessageSquare, Users } from "lucide-react"
+import { AlertTriangle, BarChart3, MessageSquare, Users, Package, RefreshCw, Image as ImageIcon } from "lucide-react"
 import IncidentDetailView from "@/components/incident-detail-view"
 import RightSidebar from "@/components/right-sidebar"
 import CommunicationsPanel from "@/components/communications-panel"
 import { PersonnelManagement } from "@/components/personnel-management"
-import { incidentsAPI, personnelAPI } from "@/lib/api"
+import { ResourceManagement } from "@/components/resource-management"
+import EvidenceGallery from "@/components/evidence-gallery"
+import { incidentsAPI, personnelAPI, resourcesAPI } from "@/lib/api"
 import { useWebSocket } from "@/hooks/use-websocket"
 
 // Dynamic import for Leaflet map to avoid SSR issues
@@ -22,11 +24,35 @@ const MapComponent = dynamic(() => import("@/components/map-component"), {
 
 export default function CrisisCommandDashboard() {
   const [selectedIncident, setSelectedIncident] = useState<any | null>(null)
+  const [selectedPersonnel, setSelectedPersonnel] = useState<any | null>(null)
   const [incidents, setIncidents] = useState<any[]>([])
+  const [allIncidents, setAllIncidents] = useState<any[]>([])
   const [personnel, setPersonnel] = useState<any[]>([])
   const [expandedIncident, setExpandedIncident] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
-  const [rightSidebarView, setRightSidebarView] = useState<'stats' | 'comms' | 'team'>('comms')
+  const [rightSidebarView, setRightSidebarView] = useState<'stats' | 'comms' | 'team' | 'resources' | 'evidence'>('comms')
+
+  // Resource Location Picker State
+  const [isLocationPickerActive, setIsLocationPickerActive] = useState(false)
+  const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [resources, setResources] = useState<any[]>([])
+
+  const handleActivateLocationPicker = () => {
+    setIsLocationPickerActive(true)
+    setRightSidebarView('resources') // Ensure resource tab is open
+  }
+
+  const handleMapClick = (lat: number, lng: number) => {
+    if (isLocationPickerActive) {
+      setPickedLocation({ lat, lng })
+      setIsLocationPickerActive(false)
+      setRightSidebarView('resources') // Return focus to resource tab
+    } else {
+        // If normal mode, maybe clear selection or do nothing
+        setSelectedIncident(null)
+        setSelectedPersonnel(null)
+    }
+  }
 
   // WebSocket connection
   const { isConnected, on, off, joinIncident, leaveIncident } = useWebSocket({
@@ -41,22 +67,49 @@ export default function CrisisCommandDashboard() {
       // Fetch incidents
       const incidentsResponse = await incidentsAPI.getAll()
       let currentIncidents: any[] = []
+      let fullIncidents: any[] = []
 
       if (incidentsResponse.success) {
-        currentIncidents = incidentsResponse.incidents.map((inc: any) => ({
+        fullIncidents = incidentsResponse.incidents.map((inc: any) => ({
           ...inc,
           location: { lat: inc.lat, lng: inc.lng },
           time: new Date(inc.created_at).toLocaleTimeString('en-US', {
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
+            timeZone: 'Asia/Kolkata'
           }),
-          reportSource: inc.report_source || 'web',
           responders: [],
-          resources: [],
+          resources: []
+        }))
+        setAllIncidents(fullIncidents)
+
+        // Filter out resolved incidents for the main list and map
+        const activeIncidents = fullIncidents.filter((inc: any) => inc.status !== 'resolved')
+
+        currentIncidents = activeIncidents.map((inc: any) => ({
+          ...inc,
+          reportSource: inc.report_source || 'web',
+          reporterPhone: inc.reporter_phone,
+          reportCount: inc.report_count || 1,
+          attachments: inc.attachments || [],
           arrivedUnits: 0,
           totalUnits: 0,
+          is_verified: inc.is_verified,
+          verification_score: inc.verification_score,
+          ai_analysis: inc.ai_analysis
         }))
         setIncidents(currentIncidents)
+      }
+
+      // Fetch resources
+      const resourcesResponse = await resourcesAPI.getAll()
+      let currentResources: any[] = []
+      if (resourcesResponse.success) {
+        currentResources = resourcesResponse.resources.map((r: any) => ({
+          ...r,
+          location: r.lat && r.lng ? { lat: r.lat, lng: r.lng } : null
+        }))
+        setResources(currentResources)
       }
 
       // Fetch personnel
@@ -72,14 +125,29 @@ export default function CrisisCommandDashboard() {
         }))
         setPersonnel(formattedPersonnel)
 
-        // Sync incidents with personnel data
+        // Sync active incidents with personnel and resources data
         setIncidents(prev => prev.map((inc: any) => {
           const assignedPersonnel = formattedPersonnel.filter((p: any) => p.assignedIncident === inc.id)
+          const assignedResources = currentResources.filter((r: any) => r.assigned_incident_id === inc.id)
+
           return {
             ...inc,
             responders: assignedPersonnel.map((p: any) => p.name),
+            resources: assignedResources.map((r: any) => r.name),
             arrivedUnits: assignedPersonnel.filter((p: any) => p.status === 'on-scene').length,
             totalUnits: assignedPersonnel.length,
+          }
+        }))
+
+        // Also sync ALL incidents for analytics (to get responder/resource counts if needed)
+        setAllIncidents(prev => prev.map((inc: any) => {
+          const assignedPersonnel = formattedPersonnel.filter((p: any) => p.assignedIncident === inc.id)
+          const assignedResources = currentResources.filter((r: any) => r.assigned_incident_id === inc.id)
+
+          return {
+            ...inc,
+            responders: assignedPersonnel.map((p: any) => p.name),
+            resources: assignedResources.map((r: any) => r.name),
           }
         }))
 
@@ -89,10 +157,13 @@ export default function CrisisCommandDashboard() {
             // If no incident is selected, select the first one
             const firstIncident = currentIncidents[0];
             const assigned = formattedPersonnel.filter((p: any) => p.assignedIncident === firstIncident.id)
+            const assignedRes = currentResources.filter((r: any) => r.assigned_incident_id === firstIncident.id)
+
             setExpandedIncident(firstIncident.id) // Also expand the first incident
             return {
               ...firstIncident,
               responders: assigned.map((p: any) => p.name),
+              resources: assignedRes.map((r: any) => r.name),
               arrivedUnits: assigned.filter((p: any) => p.status === 'on-scene').length,
               totalUnits: assigned.length,
             }
@@ -102,9 +173,12 @@ export default function CrisisCommandDashboard() {
             const updated = currentIncidents.find((inc: any) => inc.id === current.id)
             if (updated) {
               const assigned = formattedPersonnel.filter((p: any) => p.assignedIncident === updated.id)
+              const assignedRes = currentResources.filter((r: any) => r.assigned_incident_id === updated.id)
+
               return {
                 ...updated,
                 responders: assigned.map((p: any) => p.name),
+                resources: assignedRes.map((r: any) => r.name),
                 arrivedUnits: assigned.filter((p: any) => p.status === 'on-scene').length,
                 totalUnits: assigned.length,
               }
@@ -196,7 +270,25 @@ export default function CrisisCommandDashboard() {
 
   const handleSelectIncident = (incident: any) => {
     setSelectedIncident(incident)
+    setSelectedPersonnel(null) // Deselect personnel if incident is selected
     setExpandedIncident(expandedIncident === incident.id ? null : incident.id)
+  }
+
+  const handleSelectPersonnel = (person: any) => {
+    setSelectedPersonnel(person)
+    setSelectedIncident(null) // Deselect incident if personnel is selected
+  }
+
+  const handleConfirmResolution = async (incidentId: number) => {
+    try {
+      if (confirm("Are you sure you want to confirm resolution and release all resources?")) {
+        await incidentsAPI.resolve(incidentId, true)
+        // WebSocket will handle the update refresh
+      }
+    } catch (error) {
+      console.error("Failed to confirm resolution:", error)
+      alert("Failed to confirm resolution")
+    }
   }
 
   const activePersonnel = personnel.filter(p => p.status !== 'available').length
@@ -207,9 +299,18 @@ export default function CrisisCommandDashboard() {
       {/* Left Sidebar - Incident List and Details */}
       <div className="w-96 bg-card border-r border-border flex flex-col overflow-hidden">
         <div className="p-4 border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="w-6 h-6 text-primary" />
-            <h1 className="text-xl font-bold text-foreground">Crisis Command</h1>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-6 h-6 text-primary" />
+              <h1 className="text-xl font-bold text-foreground">ResQnet Command</h1>
+            </div>
+            <button
+              onClick={() => fetchData()}
+              className="p-2 hover:bg-muted rounded-full transition-colors"
+              title="Refresh Data"
+            >
+              <RefreshCw className="w-4 h-4 text-muted-foreground" />
+            </button>
           </div>
           <div className="text-sm text-muted-foreground">{incidents.length} Active Incidents</div>
         </div>
@@ -279,6 +380,11 @@ export default function CrisisCommandDashboard() {
                       <div className="text-xs text-muted-foreground">
                         {incident.responders.length} Personnel • Status:{" "}
                         <span className="text-accent capitalize">{incident.status}</span>
+                        {incident.reportCount > 1 && (
+                          <span className="block mt-1 text-primary font-bold text-[11px]">
+                            {incident.reportCount} Reports Merged
+                          </span>
+                        )}
                       </div>
                     </div>
                   </button>
@@ -286,7 +392,10 @@ export default function CrisisCommandDashboard() {
                   {/* Expanded Detail View */}
                   {expandedIncident === incident.id && (
                     <div className="mx-2 mt-2 mb-2">
-                      <IncidentDetailView incident={incident} />
+                      <IncidentDetailView
+                        incident={incident}
+                        onConfirmResolution={handleConfirmResolution}
+                      />
                     </div>
                   )}
                 </div>
@@ -337,7 +446,11 @@ export default function CrisisCommandDashboard() {
               <MapComponent
                 incidents={incidents}
                 selectedIncident={selectedIncident}
+                selectedPersonnel={selectedPersonnel}
                 personnel={personnel}
+                resources={resources}
+                isLocationPickerActive={isLocationPickerActive}
+                onMapClick={handleMapClick}
               />
             )}
           </div>
@@ -384,6 +497,18 @@ export default function CrisisCommandDashboard() {
               <span className="text-[10px]">Team</span>
             </div>
           </button>
+          <button
+            onClick={() => setRightSidebarView('resources')}
+            className={`flex-1 px-2 py-3 font-medium transition-colors ${rightSidebarView === 'resources'
+              ? 'bg-primary/10 text-primary border-b-2 border-primary'
+              : 'text-muted-foreground hover:bg-muted/50'
+              }`}
+          >
+            <div className="flex flex-col items-center justify-center gap-1">
+              <Package className="w-4 h-4" />
+              <span className="text-[10px]">Resources</span>
+            </div>
+          </button>
         </div>
 
         {/* Tab Content */}
@@ -391,9 +516,18 @@ export default function CrisisCommandDashboard() {
           {rightSidebarView === 'comms' ? (
             <CommunicationsPanel />
           ) : rightSidebarView === 'stats' ? (
-            <RightSidebar incidents={incidents} />
+            <RightSidebar incidents={allIncidents} />
+          ) : rightSidebarView === 'team' ? (
+            <PersonnelManagement onSelectPersonnel={handleSelectPersonnel} selectedPersonnelId={selectedPersonnel?.id} />
+          ) : rightSidebarView === 'resources' ? (
+            <ResourceManagement 
+              incidents={incidents} 
+              resources={resources}
+              pickedLocation={pickedLocation}
+              onActivatePicker={handleActivateLocationPicker}
+            />
           ) : (
-            <PersonnelManagement />
+            <EvidenceGallery />
           )}
         </div>
       </div>

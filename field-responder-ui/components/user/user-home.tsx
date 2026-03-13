@@ -8,10 +8,11 @@ import { calculateDistance } from "@/lib/utils"
 
 interface UserHomeProps {
     onNavigateToReport?: (type: string) => void
+    onNavigateToSafety?: () => void
     activeIncident?: any
 }
 
-export default function UserHome({ onNavigateToReport, activeIncident }: UserHomeProps) {
+export default function UserHome({ onNavigateToReport, onNavigateToSafety, activeIncident }: UserHomeProps) {
     const [nearbyIncidents, setNearbyIncidents] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
@@ -216,19 +217,29 @@ export default function UserHome({ onNavigateToReport, activeIncident }: UserHom
                 </div>
             </div>
 
-            {/* Safety Tips */}
+            {/* Safety Tips - NOW CLICKABLE */}
             <div className="px-4 pb-6">
                 <h2 className="text-lg font-bold mb-3">Safety Tips</h2>
-                <div className="card-elevated rounded-2xl p-4 shadow-apple bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
-                    <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                            <CheckCircle className="w-5 h-5 text-primary" />
+                <div 
+                    onClick={onNavigateToSafety}
+                    className="card-elevated rounded-2xl p-4 shadow-apple bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 cursor-pointer active:scale-95 transition-transform"
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                                <CheckCircle className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-sm mb-1">Stay Prepared</h3>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    Tap to view comprehensive safety guides and emergency protocols.
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="font-bold text-sm mb-1">Stay Prepared</h3>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                                Keep emergency contacts saved. Know your nearest hospital and police station locations.
-                            </p>
+                        <div className="text-primary">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
                         </div>
                     </div>
                 </div>

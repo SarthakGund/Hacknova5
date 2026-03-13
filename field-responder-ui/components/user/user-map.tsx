@@ -13,7 +13,7 @@ interface UserMapProps {
     }>
 }
 
-export default function UserMap({ incidents = [] }: UserMapProps) {
+export default function UserMap({ incidents = [], resources = [], zones = [] }: any) {
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<any>(null)
     const markersLayer = useRef<any>(null)
@@ -92,14 +92,14 @@ export default function UserMap({ incidents = [] }: UserMapProps) {
         }
     }, [isClient, userLocation])
 
-    // Update incident markers when incidents change
+    // Update markers when data changes
     useEffect(() => {
         if (!map.current || !markersLayer.current) return
 
-        const updateIncidents = async () => {
+        const updateMapItems = async () => {
             const L = (await import("leaflet")).default
 
-            // Clear existing incident markers (keep user marker)
+            // Clear existing markers
             markersLayer.current.clearLayers()
 
             // Re-add user marker
@@ -120,10 +120,10 @@ export default function UserMap({ incidents = [] }: UserMapProps) {
                     .bindPopup("<strong>Your Location</strong>")
             }
 
-            // Add incident markers
-            incidents.forEach((incident) => {
+            // 1. Add Incident markers
+            incidents.forEach((incident: any) => {
                 const color =
-                    incident.severity === "high" ? "#ef4444" :
+                    incident.severity === "high" || incident.severity === "critical" ? "#ef4444" :
                         incident.severity === "medium" ? "#f97316" : "#eab308"
 
                 const incidentIcon = L.divIcon({
@@ -142,16 +142,70 @@ export default function UserMap({ incidents = [] }: UserMapProps) {
                 L.marker([incident.lat, incident.lng], { icon: incidentIcon })
                     .addTo(markersLayer.current)
                     .bindPopup(`
-            <div class="p-2">
-              <strong class="text-sm">${incident.type}</strong><br/>
-              <span class="text-xs text-gray-600">${incident.location}</span>
+            <div class="p-2 min-w-[150px]">
+              <div class="flex items-center gap-2 mb-1">
+                 <span class="w-2 h-2 rounded-full" style="background-color: ${color}"></span>
+                 <strong class="text-sm">${incident.type}</strong>
+              </div>
+              <p class="text-xs text-gray-600 mb-1">${incident.location}</p>
+              <div class="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 w-fit">
+                ${(incident.status || 'Active').toUpperCase()}
+              </div>
             </div>
           `)
             })
+
+            // 2. Add Resource markers (Blue/Green)
+            resources.forEach((resource: any) => {
+                const color = "#3b82f6" // Blue for resources
+
+                const resourceIcon = L.divIcon({
+                    html: `
+            <div class="flex items-center justify-center w-8 h-8 rounded-full shadow-md border-2 border-white bg-white">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-white" style="background-color: ${color}">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+            </div>
+          `,
+                    className: "",
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16],
+                })
+
+                L.marker([resource.lat || 0, resource.lng || 0], { icon: resourceIcon })
+                    .addTo(markersLayer.current)
+                    .bindPopup(`
+            <div class="p-2">
+              <strong class="text-sm text-blue-600">${resource.name}</strong><br/>
+              <span class="text-xs text-gray-500">${resource.type}</span>
+            </div>
+          `)
+            })
+
+            // 3. Add Geofence Zones (Circles)
+            zones.forEach((zone: any) => {
+                const color = zone.zone_type === "danger" ? "#ef4444" : "#22c55e" // Red for danger, Green for safe
+                
+                L.circle([zone.lat, zone.lng], {
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.2,
+                    radius: zone.radius || 500
+                })
+                .addTo(markersLayer.current)
+                .bindPopup(`
+                    <div class="p-2">
+                        <strong class="text-sm" style="color: ${color}">${zone.name}</strong><br/>
+                        <span class="text-xs text-gray-500">${zone.zone_type.toUpperCase()} ZONE</span>
+                    </div>
+                `)
+            })
         }
 
-        updateIncidents()
-    }, [incidents, userLocation])
+        updateMapItems()
+    }, [incidents, resources, zones, userLocation])
 
     return <div ref={mapContainer} className="w-full h-full" />
 }

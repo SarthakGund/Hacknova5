@@ -1,10 +1,40 @@
 from flask import Blueprint, request, jsonify
 from database import get_db_connection
-from datetime import datetime
+from datetime import datetime, timedelta
 from utils.file_utils import save_file
+from utils.geo_utils import calculate_distance
 from utils.notification_utils import broadcast_incident_notification
+from utils.ai_utils import ai_handler
+from config import Config
+import threading
+import os
 
 incidents_bp = Blueprint('incidents', __name__)
+
+@incidents_bp.route('/attachments', methods=['GET'])
+def get_all_attachments():
+    """Get all file attachments across all incidents for Evidence Gallery"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    limit = request.args.get('limit', 100)
+    
+    cursor.execute('''
+        SELECT a.*, i.title as incident_title, i.severity as incident_severity
+        FROM attachments a
+        JOIN incidents i ON a.incident_id = i.id
+        ORDER BY a.created_at DESC
+        LIMIT ?
+    ''', (limit,))
+    
+    attachments = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'count': len(attachments),
+        'attachments': attachments
+    })
 
 @incidents_bp.route('/incidents', methods=['GET'])
 def get_incidents():
@@ -53,12 +83,14 @@ def get_incidents():
         ''', (incident['id'],))
         incident['resources'] = [dict(row) for row in cursor.fetchall()]
         
-        # Get attachments count
+        # Get attachments
         cursor.execute('''
-            SELECT COUNT(*) as count FROM attachments
+            SELECT * FROM attachments
             WHERE incident_id = ?
+            ORDER BY created_at DESC
         ''', (incident['id'],))
-        incident['attachments_count'] = cursor.fetchone()['count']
+        incident['attachments'] = [dict(row) for row in cursor.fetchall()]
+        incident['attachments_count'] = len(incident['attachments'])
         
         # Format location
         incident['location'] = {
@@ -154,11 +186,86 @@ def create_incident():
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # Define severity ranking for upgrades
+    severity_rank = {'critical': 3, 'high': 2, 'medium': 1, 'low': 0}
+    
+    # 1. Search for potential duplicates (Active within last 24 hours)
+    cutoff = (datetime.now() - timedelta(hours=24)).isoformat()
+    cursor.execute('''
+        SELECT id, lat, lng, report_count, severity FROM incidents 
+        WHERE type = ? AND status = 'active' AND created_at >= ?
+    ''', (data['type'], cutoff))
+    
+    active_incidents = [dict(row) for row in cursor.fetchall()]
+    
+    # Check for duplicates (within 500m)
+    duplicate_incident = None
+    for incident in active_incidents:
+        distance = calculate_distance(
+            data['lat'], data['lng'],
+            incident['lat'], incident['lng']
+        )
+        if distance <= 500:  # 500 meters threshold
+            duplicate_incident = incident
+            break
+            
+    if duplicate_incident:
+        # Increment report count
+        new_count = (duplicate_incident['report_count'] or 1) + 1
+        now = datetime.now().isoformat()
+        
+        # Determine if severity upgrade is needed
+        new_severity = data['severity']
+        old_severity = duplicate_incident['severity']
+        upgrade_needed = severity_rank.get(new_severity, 0) > severity_rank.get(old_severity, 0)
+        
+        update_query = '''
+            UPDATE incidents 
+            SET report_count = ?, updated_at = ?
+        '''
+        update_params = [new_count, now]
+        
+        timeline_desc = f'Additional report received. Total reports: {new_count}'
+        
+        if upgrade_needed:
+            update_query += ', severity = ?'
+            update_params.append(new_severity)
+            timeline_desc += f'. Severity upgraded from {old_severity.upper()} to {new_severity.upper()} based on new report.'
+            
+        update_query += ' WHERE id = ?'
+        update_params.append(duplicate_incident['id'])
+        
+        cursor.execute(update_query, update_params)
+        
+        # Add timeline event for duplicate/merged report
+        cursor.execute('''
+            INSERT INTO incident_timeline (incident_id, event_type, description, user_name)
+            VALUES (?, ?, ?, ?)
+        ''', (
+            duplicate_incident['id'], 
+            'duplicate_report', 
+            timeline_desc, 
+            'System'
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'incident_id': duplicate_incident['id'],
+            'message': 'Report merged with existing incident',
+            'is_duplicate': True,
+            'severity_upgraded': upgrade_needed
+        }), 200
+
+    now = datetime.now().isoformat()
     cursor.execute('''
         INSERT INTO incidents (
             title, description, type, severity, status,
-            lat, lng, location_name, report_source
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            lat, lng, location_name, report_source, report_count,
+            created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
     ''', (
         data['title'],
         data.get('description', ''),
@@ -168,7 +275,9 @@ def create_incident():
         data['lat'],
         data['lng'],
         data.get('location_name', ''),
-        data.get('report_source', 'web')
+        data.get('report_source', 'web'),
+        now,
+        now
     ))
     
     incident_id = cursor.lastrowid
@@ -225,8 +334,17 @@ def update_incident(incident_id):
         return jsonify({'success': False, 'error': 'No fields to update'}), 400
     
     # Add updated_at
+    now = datetime.now().isoformat()
     update_fields.append('updated_at = ?')
-    params.append(datetime.now().isoformat())
+    params.append(now)
+    
+    # If status is being updated to resolved, set resolved_at
+    if data.get('status') == 'resolved':
+        update_fields.append('resolved_at = ?')
+        params.append(now)
+    elif 'status' in data and data.get('status') != 'resolved':
+        # Optional: Clear resolved_at if status changes away from resolved
+        update_fields.append('resolved_at = NULL')
     
     # Add incident_id for WHERE clause
     params.append(incident_id)
@@ -334,7 +452,82 @@ def upload_attachment(incident_id):
     
     attachment_id = cursor.lastrowid
     
-    # Add timeline event
+    # Trigger AI Verification in background if it's an image
+    if file_info['file_type'] == 'image':
+        def run_verification(inc_id, photo_path):
+            incident_type = None
+            incident_desc = None
+            
+            # Step 1: Get incident data and close connection immediately
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT type, description FROM incidents WHERE id = ?', (inc_id,))
+                incident = cursor.fetchone()
+                if incident:
+                    incident_type = incident['type']
+                    incident_desc = incident['description'] or "No description provided"
+            
+            if not incident_type:
+                return
+
+            # Step 2: Call AI (This is the slow part, no DB connection held)
+            print(f"🤖 AI: Starting verification for incident {inc_id}...")
+            result = ai_handler.verify_incident_photo(photo_path, incident_type, incident_desc)
+            
+            # Step 3: Re-open connection to save results (with retry)
+            import time
+            import random
+            max_retries = 5
+            for attempt in range(max_retries):
+                try:
+                    with get_db_connection() as conn:
+                        # Explicitly begin transaction
+                        conn.execute('BEGIN IMMEDIATE')
+                        cursor = conn.cursor()
+                        # Update incident with verification results
+                        cursor.execute('''
+                            UPDATE incidents 
+                            SET is_verified = ?, verification_score = ?, ai_analysis = ?, updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                        ''', (
+                            1 if result['is_verified'] else 0,
+                            result['confidence_score'],
+                            result['analysis'],
+                            inc_id
+                        ))
+                        
+                        # Add timeline event
+                        verification_status = "VERIFIED" if result['is_verified'] else "UNVERIFIED"
+                        cursor.execute('''
+                            INSERT INTO incident_timeline (incident_id, event_type, description, user_name, metadata)
+                            VALUES (?, ?, ?, ?, ?)
+                        ''', (
+                            inc_id,
+                            'ai_verification',
+                            f"AI Verification Result: {verification_status} (Score: {result['confidence_score']}%)",
+                            'Gemini Flash',
+                            result['analysis']
+                        ))
+                        conn.commit()
+                        print(f"✅ AI Verification saved successfully on attempt {attempt + 1}")
+                        break # Success!
+                except Exception as db_err:
+                    # Check if it's a lock error
+                    if 'locked' in str(db_err) and attempt < max_retries - 1:
+                        wait_time = (0.5 * (2 ** attempt)) + (random.random() * 0.2)
+                        print(f"⚠️ DB Locked. Retrying in {wait_time:.2f}s... (Attempt {attempt + 1}/{max_retries})")
+                        time.sleep(wait_time)
+                    else:
+                        print(f"🤖 DB Error saving verification: {db_err}")
+                        break
+            else:
+                print(f"🤖 AI Error: {result.get('error')}")
+
+        # Start verification in a separate thread to not block the response
+        full_photo_path = os.path.join(Config.BASE_DIR, file_info['filepath'])
+        threading.Thread(target=run_verification, args=(incident_id, full_photo_path)).start()
+
+    # Add timeline event for the upload itself
     cursor.execute('''
         INSERT INTO incident_timeline (incident_id, event_type, description, user_name)
         VALUES (?, ?, ?, ?)
@@ -383,15 +576,17 @@ def add_timeline_event(incident_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    now = datetime.now().isoformat()
     cursor.execute('''
-        INSERT INTO incident_timeline (incident_id, event_type, description, user_name, metadata)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO incident_timeline (incident_id, event_type, description, user_name, metadata, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
     ''', (
         incident_id,
         data['event_type'],
         data['description'],
         data.get('user_name', 'System'),
-        data.get('metadata', '')
+        data.get('metadata', ''),
+        now
     ))
     
     timeline_id = cursor.lastrowid
@@ -402,3 +597,104 @@ def add_timeline_event(incident_id):
         'success': True,
         'timeline_id': timeline_id
     }), 201
+
+@incidents_bp.route('/incidents/<int:incident_id>/resolve', methods=['POST'])
+def resolve_incident(incident_id):
+    """Resolve incident and release all assigned resources"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 1. Verify incident exists
+    cursor.execute('SELECT * FROM incidents WHERE id = ?', (incident_id,))
+    incident = cursor.fetchone()
+    if not incident:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Incident not found'}), 404
+        
+    try:
+        # Check for confirmation flag
+        data = request.get_json() or {}
+        confirm = data.get('confirm', False)
+
+        # If not confirmed, just set to pending_review
+        if not confirm:
+            now = datetime.now().isoformat()
+            cursor.execute('''
+                UPDATE incidents 
+                SET status = 'pending_review', updated_at = ?
+                WHERE id = ?
+            ''', (now, incident_id))
+            
+            # Add Timeline Event
+            cursor.execute('''
+                INSERT INTO incident_timeline (incident_id, event_type, description, user_name)
+                VALUES (?, ?, ?, ?)
+            ''', (
+                incident_id, 
+                'resolution_submitted', 
+                'Incident submitted for resolution. Review required.', 
+                'Responder'
+            ))
+            
+            conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Incident submitted for review',
+                'status': 'pending_review',
+                'released_personnel': 0,
+                'released_resources': 0
+            })
+
+        # 2. Update Incident Status
+        now = datetime.now().isoformat()
+        cursor.execute('''
+            UPDATE incidents 
+            SET status = 'resolved', updated_at = ?, resolved_at = ?
+            WHERE id = ?
+        ''', (now, now, incident_id))
+        
+        # 3. Release Personnel
+        cursor.execute('''
+            UPDATE personnel
+            SET status = 'available', assigned_incident_id = NULL, updated_at = ?
+            WHERE assigned_incident_id = ?
+        ''', (datetime.now().isoformat(), incident_id))
+        affected_personnel = cursor.rowcount
+        
+        # 4. Release Resources
+        cursor.execute('''
+            UPDATE resources
+            SET status = 'available', assigned_incident_id = NULL, updated_at = ?
+            WHERE assigned_incident_id = ?
+        ''', (datetime.now().isoformat(), incident_id))
+        affected_resources = cursor.rowcount
+        
+        # 5. Add Timeline Event
+        cursor.execute('''
+            INSERT INTO incident_timeline (incident_id, event_type, description, user_name)
+            VALUES (?, ?, ?, ?)
+        ''', (
+            incident_id, 
+            'incident_resolved', 
+            f'Incident resolution confirmed. Released {affected_personnel} personnel and {affected_resources} resources.', 
+            'Supervisor'
+        ))
+        
+        conn.commit()
+        
+        # Broadcast update (optional but good practice)
+        # We generally rely on the polling/websocket to pick up status changes
+        
+        return jsonify({
+            'success': True,
+            'message': 'Incident resolved successfully',
+            'released_personnel': affected_personnel,
+            'released_resources': affected_resources
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()

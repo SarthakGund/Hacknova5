@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useMode } from "@/contexts/mode-context"
 import BottomNav from "@/components/bottom-nav"
 import { useResponderLocation } from "@/hooks/use-responder-location"
@@ -21,8 +21,34 @@ import UserProfile from "@/components/user/user-profile"
 export default function FieldResponderApp() {
   const { mode } = useMode()
 
-  // Start location pulse if in responder mode (Mock ID 1)
-  useResponderLocation(1, mode === "responder")
+  // Start location pulse if in responder mode
+  const [personnelId, setPersonnelId] = useState<number | null>(null)
+
+  useEffect(() => {
+    const fetchPid = async () => {
+      const userStr = localStorage.getItem('currentUser')
+      if (userStr) {
+        const user = JSON.parse(userStr)
+        try {
+          const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+          const res = await fetch(`${API_BASE_URL}/personnel/user/${user.id}`, {
+            headers: {
+              'ngrok-skip-browser-warning': 'true',
+            },
+          })
+          const data = await res.json()
+          if (data.success && data.personnel) {
+            setPersonnelId(data.personnel.id)
+          }
+        } catch (e) {
+          console.error(e)
+        }
+      }
+    }
+    fetchPid()
+  }, [])
+
+  useResponderLocation(personnelId, mode === "responder")
   const [activeTab, setActiveTab] = useState(mode === "user" ? "home" : "mission")
   const [preSelectedType, setPreSelectedType] = useState<string | undefined>(undefined)
   const [activeIncident, setActiveIncident] = useState<any>(null)

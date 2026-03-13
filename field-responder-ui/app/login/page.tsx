@@ -17,10 +17,12 @@ export default function LoginPage() {
         setLoading(true)
 
         try {
-            const response = await fetch('http://localhost:5000/api/auth/login', {
+            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+            const response = await fetch(`${apiBaseUrl}/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true',
                 },
                 body: JSON.stringify({ username, password }),
             })
@@ -57,7 +59,7 @@ export default function LoginPage() {
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mb-4">
                         <LogIn className="w-8 h-8 text-primary-foreground" />
                     </div>
-                    <h1 className="text-3xl font-bold mb-2">Crisis Management</h1>
+                    <h1 className="text-3xl font-bold mb-2">ResQnet</h1>
                     <p className="text-muted-foreground">Sign in to continue</p>
                 </div>
 

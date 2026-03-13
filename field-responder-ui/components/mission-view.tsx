@@ -135,6 +135,27 @@ export default function MissionView() {
         }
     }
 
+    const handleResolveIncident = async () => {
+        if (!activeIncident) return
+        
+        try {
+            const result = await incidentsAPI.resolve(activeIncident.id)
+            if (result.success && result.status === 'pending_review') {
+                alert("Submitted for supervisor review. Please wait for confirmation.")
+                // Update local state to show pending UI
+                setActiveIncident((prev: any) => ({ ...prev, status: 'pending_review' }))
+            } else if (result.success) {
+                // If it was auto-resolved (e.g. low severity or config), clear it
+                setActiveIncident(null)
+                setStatus('complete')
+                alert("Incident Resolved!")
+            }
+        } catch (error) {
+            console.error("Failed to submit resolution:", error)
+            alert("Error submitting resolution.")
+        }
+    }
+
     if (loading) {
         return (
             <div className="flex h-full items-center justify-center">
@@ -171,8 +192,8 @@ export default function MissionView() {
             <MissionBriefing
                 isExpanded={missionExpanded}
                 onToggle={() => setMissionExpanded(!missionExpanded)}
-                checklist={checklist}
-                onChecklistToggle={handleChecklistToggle}
+                // checklist={checklist}
+                // onChecklistToggle={handleChecklistToggle}
                 incident={activeIncident}
             />
 
@@ -180,7 +201,12 @@ export default function MissionView() {
             <StatusBar status={status} onStatusChange={handleStatusChange} />
 
             {/* Action buttons */}
-            <ActionButtons status={status} onStatusChange={handleStatusChange} />
+            <ActionButtons
+                status={status}
+                onStatusChange={handleStatusChange}
+                onResolve={handleResolveIncident}
+                incidentId={activeIncident?.id}
+            />
         </div>
     )
 }
