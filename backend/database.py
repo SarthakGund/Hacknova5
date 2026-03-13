@@ -189,7 +189,37 @@ def init_db():
             FOREIGN KEY (incident_id) REFERENCES incidents(id)
         )
     ''')
-    
+
+    # Vulnerability Zones table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS vulnerability_zones (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            lat REAL NOT NULL,
+            lng REAL NOT NULL,
+            radius REAL DEFAULT 500,
+            severity TEXT NOT NULL DEFAULT 'high',
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # Weather Logs table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS weather_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            incident_id INTEGER,
+            lat REAL NOT NULL,
+            lng REAL NOT NULL,
+            temperature REAL,
+            precipitation REAL,
+            windspeed REAL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (incident_id) REFERENCES incidents(id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
     print("✅ Database initialized successfully!")

@@ -4,6 +4,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from config import Config
 from database import init_db, seed_sample_data, get_db_connection
 import os
+from weather_scheduler import start_scheduler
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -27,6 +28,9 @@ from routes.auth import auth_bp
 from routes.resources import resources_bp
 from routes.sos_mesh import sos_mesh_bp
 from routes.sms import sms_bp
+from routes.weather import weather_bp
+from routes.vulnerability_zones import vulnerability_bp
+from routes.rectify import rectify_bp
 
 app.register_blueprint(auth_bp, url_prefix='/api')
 app.register_blueprint(incidents_bp, url_prefix='/api')
@@ -38,6 +42,9 @@ app.register_blueprint(notifications_bp, url_prefix='/api')
 app.register_blueprint(resources_bp, url_prefix='/api')
 app.register_blueprint(sos_mesh_bp, url_prefix='/api')
 app.register_blueprint(sms_bp, url_prefix='/api')
+app.register_blueprint(weather_bp)
+app.register_blueprint(vulnerability_bp)
+app.register_blueprint(rectify_bp)
 
 
 # Root endpoint
@@ -332,6 +339,10 @@ def initialize_app():
     print(f"📁 Upload folder: {Config.UPLOAD_FOLDER}")
     print(f"🌐 CORS enabled for: {Config.CORS_ORIGINS}")
     print("✅ Backend initialized successfully!")
+    
+    # Start background scheduler
+    print("⏳ Starting background tasks...")
+    start_scheduler()
 
 if __name__ == '__main__':
     initialize_app()

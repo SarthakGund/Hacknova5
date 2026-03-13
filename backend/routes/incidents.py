@@ -282,12 +282,54 @@ def create_incident():
     
     incident_id = cursor.lastrowid
     
-    # Add timeline event
+    # --- Phase A: AI Autonomous Auto-Assignment ---
+    try:
+        # Find nearest available responder
+        cursor.execute('''
+            SELECT id, lat, lng, name 
+            FROM personnel 
+            WHERE status = 'available' AND lat IS NOT NULL AND lng IS NOT NULL
+        ''')
+        available_responders = [dict(row) for row in cursor.fetchall()]
+        
+        assigned_responder = None
+        closest_distance = float('inf')
+        
+        for responder in available_responders:
+            dist = calculate_distance(data['lat'], data['lng'], responder['lat'], responder['lng'])
+            if dist < closest_distance:
+                closest_distance = dist
+                assigned_responder = responder
+                
+        if assigned_responder:
+            # Assign responder to incident and mark them as BUSY/en-route
+            cursor.execute('''
+                UPDATE personnel 
+                SET status = 'en-route', assigned_incident_id = ?, updated_at = ?
+                WHERE id = ?
+            ''', (incident_id, now, assigned_responder['id']))
+            
+            # Log auto-dispatch in timeline
+            cursor.execute('''
+                INSERT INTO incident_timeline (incident_id, event_type, description, user_name)
+                VALUES (?, ?, ?, ?)
+            ''', (
+                incident_id, 
+                'personnel_assigned', 
+                f'AI Agent dispatched {assigned_responder["name"]} (Distance: {closest_distance:.1f}m)', 
+                'AI Agent'
+            ))
+            
+            print(f"🤖 AI Agent auto-assigned Responder {assigned_responder['name']} to Incident #{incident_id}!")
+    except Exception as e:
+        print(f"⚠️ Auto-assignment failed: {e}")
+
+    # Add general timeline event for creation
     cursor.execute('''
         INSERT INTO incident_timeline (incident_id, event_type, description, user_name)
         VALUES (?, ?, ?, ?)
     ''', (incident_id, 'incident_created', f'Incident reported: {data["title"]}', 'System'))
-    
+
     conn.commit()
     conn.close()
     

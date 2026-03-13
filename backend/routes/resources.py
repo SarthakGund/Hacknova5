@@ -52,7 +52,7 @@ def get_public_resources():
     # Fetch only active/deployed resources that are public
     cursor.execute('''
         SELECT * FROM resources 
-        WHERE is_public = 1 
+        WHERE (is_public = 1 OR is_public = '1' OR is_public = 'True' OR is_public = 'true' OR is_public = TRUE) 
         AND status != 'maintenance'
     ''')
     
@@ -85,7 +85,7 @@ def create_resource():
             data.get('status', 'available'),
             data.get('lat', 0),
             data.get('lng', 0),
-            data.get('is_public', False)
+            1 if data.get('is_public', False) in [True, 1, 'true', '1'] else 0
         ))
         
         resource_id = cursor.lastrowid
