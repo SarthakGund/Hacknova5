@@ -5,12 +5,12 @@ import { ChevronUp } from "lucide-react"
 interface MissionBriefingProps {
   isExpanded: boolean
   onToggle: () => void
-  checklist: Record<string, boolean>
-  onChecklistToggle: (item: string) => void
+  // checklist: Record<string, boolean>
+  // onChecklistToggle: (item: string) => void
   incident?: any
 }
 
-export default function MissionBriefing({ isExpanded, onToggle, checklist, onChecklistToggle, incident }: MissionBriefingProps) {
+export default function MissionBriefing({ isExpanded, onToggle,  incident }: MissionBriefingProps) {
   if (!incident) return null
 
   const formattedIncident = {
@@ -63,13 +63,13 @@ export default function MissionBriefing({ isExpanded, onToggle, checklist, onChe
           {/* Victims and Severity - Side by side */}
           <div className="flex items-center gap-3">
             {/* Victims */}
-            <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950/30 rounded-lg px-3 py-1.5 flex-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">Victims</p>
-                <p className="text-sm text-gray-900 dark:text-white font-bold truncate">{formattedIncident.victims} persons</p>
-              </div>
-            </div>
+            {/* <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950/30 rounded-lg px-3 py-1.5 flex-1"> */}
+              {/* <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" /> */}
+              {/* <div className="min-w-0"> */}
+                {/* <p className="text-[10px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">Victims</p> */}
+                {/* <p className="text-sm text-gray-900 dark:text-white font-bold truncate">{formattedIncident.victims} persons</p> */}
+              {/* </div> */}
+            {/* </div> */}
 
             {/* Severity */}
             <div className="flex items-center gap-2 bg-orange-50 dark:bg-orange-950/30 rounded-lg px-3 py-1.5 flex-1">
@@ -103,7 +103,7 @@ export default function MissionBriefing({ isExpanded, onToggle, checklist, onChe
           </div>
 
           {/* Checklist */}
-          <div className="space-y-2.5 pt-3 border-t-2 border-gray-200 dark:border-gray-800">
+          {/* <div className="space-y-2.5 pt-3 border-t-2 border-gray-200 dark:border-gray-800">
             <p className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wide">Action Checklist</p>
             {[
               { key: "staging", label: "Arrived at Staging Area" },
@@ -128,7 +128,7 @@ export default function MissionBriefing({ isExpanded, onToggle, checklist, onChe
                 </span>
               </label>
             ))}
-          </div>
+          </div> */}
         </div>
       )}
     </div>

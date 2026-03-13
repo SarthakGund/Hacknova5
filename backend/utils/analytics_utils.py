@@ -95,6 +95,18 @@ def get_incident_statistics(time_period_days=30):
     
     avg_response = cursor.fetchone()
     avg_response_time = round(avg_response['avg_response_time'], 2) if avg_response['avg_response_time'] else 0
+
+    # Average resolution time (Creation to Resolved status)
+    cursor.execute('''
+        SELECT AVG(
+            (julianday(resolved_at) - julianday(created_at)) * 24 * 60
+        ) as avg_resolution_time
+        FROM incidents
+        WHERE created_at >= ? AND status = 'resolved' AND resolved_at IS NOT NULL
+    ''', (cutoff_date.isoformat(),))
+    
+    avg_res = cursor.fetchone()
+    avg_resolution_time = round(avg_res['avg_resolution_time'], 2) if avg_res['avg_resolution_time'] else 0
     
     conn.close()
     
@@ -103,6 +115,7 @@ def get_incident_statistics(time_period_days=30):
         'incidents_by_type': incidents_by_type,
         'incidents_by_severity': incidents_by_severity,
         'avg_response_time_minutes': avg_response_time,
+        'avg_resolution_time_minutes': avg_resolution_time,
         'time_period_days': time_period_days
     }
 
@@ -180,7 +193,7 @@ def get_resource_utilization():
     total_resources = cursor.fetchone()['total']
     
     # Deployed resources
-    cursor.execute('SELECT COUNT(*) as deployed FROM resources WHERE status = "deployed"')
+    cursor.execute('SELECT COUNT(*) as deployed FROM resources WHERE status = ?', ('deployed',))
     deployed_resources = cursor.fetchone()['deployed']
     
     utilization_rate = (deployed_resources / total_resources * 100) if total_resources > 0 else 0

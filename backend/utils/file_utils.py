@@ -44,9 +44,11 @@ def save_file(file, incident_id):
     else:
         file_type = 'other'
     
+    relative_path = f'uploads/incident_{incident_id}/{filename}'
+    
     return {
         'filename': original_filename,
-        'filepath': filepath,
+        'filepath': relative_path,
         'file_type': file_type,
         'file_size': file_size
     }

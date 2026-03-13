@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Flame, Heart, Shield, AlertTriangle, Car, Zap, MapPin, Camera, Send, CheckCircle } from "lucide-react"
+import { Flame, Heart, Shield, AlertTriangle, Car, Zap, MapPin, Camera, Send, CheckCircle, Loader2 } from "lucide-react"
 import { incidentsAPI } from "@/lib/api"
+import LocationPicker from "./location-picker"
 
 interface ReportIncidentProps {
     preSelectedType?: string
@@ -15,6 +16,9 @@ export default function ReportIncident({ preSelectedType, onSubmit }: ReportInci
     const [severity, setSeverity] = useState<"low" | "medium" | "high">("medium")
     const [isAnonymous, setIsAnonymous] = useState(false)
     const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
+    const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null)
+    const [capturedLocation, setCapturedLocation] = useState<{ lat: number; lng: number } | null>(null)
+    const [isCapturingLocation, setIsCapturingLocation] = useState(false)
     const [showSuccessPopup, setShowSuccessPopup] = useState(false)
     const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
     const [locationName, setLocationName] = useState("Getting location...")
@@ -23,26 +27,33 @@ export default function ReportIncident({ preSelectedType, onSubmit }: ReportInci
 
     // Get user's location on mount
     useEffect(() => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const { latitude, longitude } = position.coords
-                    setLocation({ lat: latitude, lng: longitude })
-                    setLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`)
-                },
-                (error) => {
-                    console.error("Error getting location:", error)
-                    // Default to Delhi location if geolocation fails
+        getCurrentLocation()
+    }, [])
+
+    const getCurrentLocation = () => {
+        if (!navigator.geolocation) return;
+
+        setIsCapturingLocation(true)
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords
+                setLocation({ lat: latitude, lng: longitude })
+                setLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`)
+                setIsCapturingLocation(false)
+            },
+            (error) => {
+                console.error("Error getting location:", error)
+                if (!location) {
                     setLocation({ lat: 28.7041, lng: 77.1025 })
                     setLocationName("Delhi, India (Default)")
                 }
-            )
-        } else {
-            // Default location if geolocation not supported
-            setLocation({ lat: 28.7041, lng: 77.1025 })
-            setLocationName("Delhi, India (Default)")
-        }
-    }, [])
+                setIsCapturingLocation(false)
+            }
+        )
+    }
+
+    // Location selection
+    const [showMap, setShowMap] = useState(false)
 
     const incidentTypes = [
         { id: "fire", icon: Flame, label: "Fire", color: "bg-red-500" },
@@ -53,6 +64,25 @@ export default function ReportIncident({ preSelectedType, onSubmit }: ReportInci
         { id: "other", icon: AlertTriangle, label: "Other", color: "bg-orange-500" },
     ]
 
+    const handleLocationChange = (newLoc: { lat: number; lng: number }) => {
+        setLocation(newLoc)
+        setLocationName(`${newLoc.lat.toFixed(6)}, ${newLoc.lng.toFixed(6)}`)
+    }
+
+    const handleManualLatChange = (val: string) => {
+        const lat = parseFloat(val)
+        if (!isNaN(lat) && location) {
+            handleLocationChange({ ...location, lat })
+        }
+    }
+
+    const handleManualLngChange = (val: string) => {
+        const lng = parseFloat(val)
+        if (!isNaN(lng) && location) {
+            handleLocationChange({ ...location, lng })
+        }
+    }
+
     const handlePhotoClick = () => {
         fileInputRef.current?.click()
     }
@@ -61,6 +91,14 @@ export default function ReportIncident({ preSelectedType, onSubmit }: ReportInci
         const file = e.target.files?.[0]
         if (file) {
             setSelectedPhoto(file)
+            setCapturedLocation(location) // Tag with current selected location
+
+            // Generate preview
+            const reader = new FileReader()
+            reader.onloadend = () => {
+                setPhotoPreviewUrl(reader.result as string)
+            }
+            reader.readAsDataURL(file)
         }
     }
 
@@ -114,6 +152,8 @@ export default function ReportIncident({ preSelectedType, onSubmit }: ReportInci
                     setSeverity("medium")
                     setIsAnonymous(false)
                     setSelectedPhoto(null)
+                    setPhotoPreviewUrl(null)
+                    setCapturedLocation(null)
                     setIsSubmitting(false)
                 }, 3000)
             }
@@ -125,17 +165,17 @@ export default function ReportIncident({ preSelectedType, onSubmit }: ReportInci
     }
 
     return (
-        <div className="flex flex-col h-full bg-background overflow-y-auto pb-20">
+        <div className="flex flex-col h-full bg-background overflow-y-auto pb-20 scrollbar-hide">
             {/* Header */}
             <div className="gradient-header border-b border-border px-4 py-6">
-                <h1 className="text-2xl font-bold mb-1">Report Incident</h1>
-                <p className="text-sm text-muted-foreground">Help is on the way once you submit</p>
+                <h1 className="text-2xl font-bold mb-1 font-heading tracking-tight">Report Incident</h1>
+                <p className="text-sm text-muted-foreground/80">Help is on the way once you submit</p>
             </div>
 
             <div className="px-4 py-4 space-y-6">
                 {/* Incident Type Selection */}
                 <div>
-                    <label className="text-sm font-bold text-foreground mb-3 block">
+                    <label className="text-sm font-bold text-foreground mb-3 block opacity-80 uppercase tracking-wider">
                         What type of emergency? *
                     </label>
                     <div className="grid grid-cols-3 gap-2">
@@ -147,33 +187,80 @@ export default function ReportIncident({ preSelectedType, onSubmit }: ReportInci
                                     key={type.id}
                                     onClick={() => setSelectedType(type.id)}
                                     className={`
-                    rounded-xl p-4 transition-all duration-300 ios-press
-                    flex flex-col items-center justify-center gap-2
-                    ${isSelected
-                                            ? `${type.color} text-white shadow-apple-lg scale-105`
-                                            : "bg-muted/50 hover:bg-muted text-muted-foreground"
+                                        rounded-2xl p-4 transition-all duration-300 ios-press
+                                        flex flex-col items-center justify-center gap-2
+                                        ${isSelected
+                                            ? `${type.color} text-white shadow-apple-lg scale-105 z-10`
+                                            : "bg-muted/40 hover:bg-muted/60 text-muted-foreground border border-border/50"
                                         }
-                  `}
+                                    `}
                                 >
-                                    <Icon className="w-6 h-6" strokeWidth={2} />
-                                    <span className="text-xs font-semibold">{type.label}</span>
+                                    <Icon className="w-6 h-6" strokeWidth={2.5} />
+                                    <span className="text-[11px] font-bold uppercase tracking-wide">{type.label}</span>
                                 </button>
                             )
                         })}
                     </div>
                 </div>
 
-                {/* Location */}
-                <div>
-                    <label className="text-sm font-bold text-foreground mb-2 block">
-                        Location
-                    </label>
-                    <div className="card-elevated rounded-xl p-3 flex items-center gap-3">
-                        <MapPin className="w-5 h-5 text-primary" />
-                        <div className="flex-1">
-                            <p className="text-sm font-medium text-foreground">Current Location</p>
-                            <p className="text-xs text-muted-foreground">{locationName}</p>
+                {/* Enhanced Location Selection */}
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <label className="text-sm font-bold text-foreground opacity-80 uppercase tracking-wider">
+                            Incident Location *
+                        </label>
+                        <button 
+                            onClick={getCurrentLocation}
+                            className="text-[10px] font-bold text-primary flex items-center gap-1 bg-primary/10 px-2 py-1 rounded-full ios-press"
+                        >
+                            <MapPin className="w-3 h-3" /> USE MY GPS
+                        </button>
+                    </div>
+
+                    {/* Manual Entry or Map Selection */}
+                    <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-muted-foreground ml-1">LATITUDE</p>
+                                <input 
+                                    type="number"
+                                    step="0.000001"
+                                    value={location?.lat || ""}
+                                    onChange={(e) => handleManualLatChange(e.target.value)}
+                                    placeholder="e.g. 28.6139"
+                                    className="w-full bg-muted/40 border border-border/50 rounded-xl px-3 py-2 text-xs font-mono focus:ring-1 focus:ring-primary outline-none"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-muted-foreground ml-1">LONGITUDE</p>
+                                <input 
+                                    type="number"
+                                    step="0.000001"
+                                    value={location?.lng || ""}
+                                    onChange={(e) => handleManualLngChange(e.target.value)}
+                                    placeholder="e.g. 77.2090"
+                                    className="w-full bg-muted/40 border border-border/50 rounded-xl px-3 py-2 text-xs font-mono focus:ring-1 focus:ring-primary outline-none"
+                                />
+                            </div>
                         </div>
+
+                        {/* Interactive Map Picker */}
+                        <div className="h-[200px] w-full rounded-2xl overflow-hidden border border-border/50 shadow-sm relative group">
+                            {location ? (
+                                <LocationPicker 
+                                    initialLocation={location}
+                                    onChange={handleLocationChange}
+                                />
+                            ) : (
+                                <div className="w-full h-full bg-muted/20 flex flex-col items-center justify-center gap-2">
+                                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                                    <p className="text-[10px] font-bold text-muted-foreground">Initializing Location Service...</p>
+                                </div>
+                            )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground text-center italic">
+                            Tap map or drag pin to adjust location precisely
+                        </p>
                     </div>
                 </div>
 
@@ -231,15 +318,55 @@ export default function ReportIncident({ preSelectedType, onSubmit }: ReportInci
                         onChange={handlePhotoChange}
                         className="hidden"
                     />
-                    <button
-                        onClick={handlePhotoClick}
-                        className="w-full card-elevated rounded-xl p-4 flex items-center justify-center gap-2 hover:bg-muted/50 transition-all ios-press"
-                    >
-                        <Camera className="w-5 h-5 text-primary" />
-                        <span className="text-sm font-semibold text-primary">
-                            {selectedPhoto ? selectedPhoto.name : "Take or Upload Photo"}
-                        </span>
-                    </button>
+
+                    {photoPreviewUrl ? (
+                        <div className="relative group">
+                            <div className="w-full h-48 rounded-2xl overflow-hidden border-2 border-primary/20 shadow-apple-lg bg-muted">
+                                <img src={photoPreviewUrl} alt="Preview" className="w-full h-full object-cover" />
+
+                                {/* Geo-tag Overlay */}
+                                <div className="absolute bottom-3 left-3 right-3 glass-strong rounded-xl p-2 flex items-center gap-2 border border-white/20 animate-in slide-in-from-bottom-2 duration-300">
+                                    <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                                        <MapPin className="w-4 h-4 text-primary" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-[10px] font-bold text-primary uppercase tracking-wider">Geo-Tagged Evidence</p>
+                                        <p className="text-xs font-semibold text-foreground">
+                                            {capturedLocation ? `${capturedLocation.lat.toFixed(6)}, ${capturedLocation.lng.toFixed(6)}` : "Location Pending..."}
+                                        </p>
+                                    </div>
+                                    <div className="px-2 py-0.5 rounded-md bg-success/20 text-[10px] font-bold text-success border border-success/30">
+                                        VERIFIED
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setSelectedPhoto(null)
+                                    setPhotoPreviewUrl(null)
+                                    setCapturedLocation(null)
+                                }}
+                                className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-destructive text-white shadow-lg flex items-center justify-center hover:scale-110 active:scale-90 transition-all"
+                            >
+                                <Zap className="w-4 h-4 rotate-45" />
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={handlePhotoClick}
+                            className="w-full card-elevated rounded-xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-all ios-press border-2 border-dashed border-border group"
+                        >
+                            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-all">
+                                <Camera className="w-6 h-6 text-primary" />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-sm font-bold text-foreground">
+                                    {isCapturingLocation ? "Readying Camera..." : "Take Evidence Photo"}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">Photo will be automatically geo-tagged</p>
+                            </div>
+                        </button>
+                    )}
                 </div>
 
                 {/* Anonymous Toggle */}

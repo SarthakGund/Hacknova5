@@ -14,6 +14,7 @@ export default function BottomNav({ activeTab, onTabChange, mode }: BottomNavPro
     const userNavItems = [
         { id: "home", icon: Home, label: "Home" },
         { id: "report", icon: FileText, label: "Report" },
+        { id: "resources", icon: MapPin, label: "Resources" },
         { id: "alerts", icon: Bell, label: "Alerts" },
         { id: "profile", icon: User, label: "Profile" },
     ]

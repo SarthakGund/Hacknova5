@@ -9,6 +9,7 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
         ...options.headers,
       },
     });
@@ -54,6 +55,13 @@ export const incidentsAPI = {
     });
   },
 
+  resolve: async (id: number, confirm: boolean = false, reject: boolean = false) => {
+    return fetchAPI(`/incidents/${id}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify({ confirm, reject }),
+    });
+  },
+
   assign: async (id: number, data: { personnel_ids?: number[]; resource_ids?: number[] }) => {
     return fetchAPI(`/incidents/${id}/assign`, {
       method: 'POST',
@@ -78,6 +86,9 @@ export const incidentsAPI = {
 
     const response = await fetch(`${API_BASE_URL}/incidents/${id}/upload`, {
       method: 'POST',
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+      },
       body: formData,
     });
 
@@ -86,6 +97,10 @@ export const incidentsAPI = {
     }
 
     return await response.json();
+  },
+
+  getAllAttachments: async (limit = 100) => {
+    return fetchAPI(`/attachments?limit=${limit}`);
   },
 };
 
@@ -259,9 +274,41 @@ export const notificationsAPI = {
   },
 };
 
+// Resources API
+export const resourcesAPI = {
+  getAll: async (filters?: { status?: string; type?: string; is_public?: boolean }) => {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.type) params.append('type', filters.type);
+    if (filters?.is_public !== undefined) params.append('is_public', filters.is_public.toString());
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return fetchAPI(`/resources${query}`);
+  },
+
+  getAllPublic: async () => {
+    return fetchAPI('/resources/public');
+  },
+
+  create: async (data: any) => {
+    return fetchAPI('/resources', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: number, data: any) => {
+    return fetchAPI(`/resources/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
 export default {
   incidents: incidentsAPI,
   personnel: personnelAPI,
+  resources: resourcesAPI,
   comms: commsAPI,
   analytics: analyticsAPI,
   alerts: alertsAPI,

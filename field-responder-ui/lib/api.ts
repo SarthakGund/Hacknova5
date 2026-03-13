@@ -9,6 +9,7 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
             ...options,
             headers: {
                 'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
                 ...options.headers,
             },
         });
@@ -54,12 +55,22 @@ export const incidentsAPI = {
         });
     },
 
+    resolve: async (id: number, confirm: boolean = false) => {
+        return fetchAPI(`/incidents/${id}/resolve`, {
+            method: 'POST',
+            body: JSON.stringify({ confirm }),
+        });
+    },
+
     uploadFile: async (id: number, file: File) => {
         const formData = new FormData();
         formData.append('file', file);
 
         const response = await fetch(`${API_BASE_URL}/incidents/${id}/upload`, {
             method: 'POST',
+            headers: {
+                'ngrok-skip-browser-warning': 'true',
+            },
             body: formData,
         });
 
@@ -84,6 +95,10 @@ export const alertsAPI = {
             method: 'POST',
             body: JSON.stringify({ lat, lng }),
         });
+    },
+
+    getZones: async (activeOnly = true) => {
+        return fetchAPI(`/alerts/geofence?active_only=${activeOnly}`);
     },
 };
 
@@ -162,10 +177,28 @@ export const notificationsAPI = {
     },
 };
 
+// Resources API
+export const resourcesAPI = {
+    getPublic: async () => {
+        return fetchAPI('/resources/public');
+    },
+
+    getAll: async (filters?: { status?: string; type?: string; is_public?: boolean }) => {
+        const params = new URLSearchParams();
+        if (filters?.status) params.append('status', filters.status);
+        if (filters?.type) params.append('type', filters.type);
+        if (filters?.is_public !== undefined) params.append('is_public', filters.is_public.toString());
+
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return fetchAPI(`/resources${query}`);
+    }
+};
+
 export default {
     incidents: incidentsAPI,
     alerts: alertsAPI,
     personnel: personnelAPI,
     comms: commsAPI,
     notifications: notificationsAPI,
+    resources: resourcesAPI,
 };

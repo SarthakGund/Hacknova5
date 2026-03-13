@@ -29,6 +29,9 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         // Create socket connection
         socketRef.current = io(SOCKET_URL, {
             transports: ['websocket', 'polling'],
+            extraHeaders: {
+                "ngrok-skip-browser-warning": "true"
+            },
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionAttempts: 5,

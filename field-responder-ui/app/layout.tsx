@@ -5,18 +5,13 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ModeProvider } from "@/contexts/mode-context"
 import { PWARegister } from "@/components/pwa-register"
 
+import type { Viewport } from "next"
+
 export const metadata: Metadata = {
-  title: "Field Responder - Crisis Management",
+  title: "Field Responder - ResQnet",
   description: "Modern tactical field response platform",
   generator: "v0.app",
   manifest: "/manifest.json",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-    viewportFit: "cover",
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -39,6 +34,14 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-icon.png",
   },
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 }
 
 export default function RootLayout({

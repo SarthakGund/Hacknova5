@@ -50,7 +50,9 @@ export default function IncidentsView() {
                         time: new Date(inc.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                         victims: inc.victims || 0,
                         distance: distanceStr,
-                        severity: inc.description
+                        severity: inc.description,
+                        reportCount: inc.report_count || 1,
+                        verified: inc.is_verified
                     }
                 })
                 setIncidents(formatted)
@@ -163,6 +165,14 @@ export default function IncidentsView() {
                                         )}
                                     </div>
                                     <h3 className="font-semibold text-base">{incident.type}</h3>
+                                    {incident.verified && (
+                                        <div className="mt-1 flex items-center gap-1.5 w-fit bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
+                                            <div className="bg-blue-500 rounded-full p-0.5">
+                                                <CheckCircle2 className="w-2.5 h-2.5 text-white" />
+                                            </div>
+                                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 tracking-wide uppercase">AI Verified</span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {(incident.status === "active" || incident.status === "responding" || incident.status === "on-scene") && (
@@ -196,6 +206,14 @@ export default function IncidentsView() {
                                     <div className="flex items-center gap-2">
                                         <UsersIcon className="w-3.5 h-3.5 text-muted-foreground" />
                                         <span className="text-xs text-muted-foreground">{incident.victims} victims</span>
+                                    </div>
+                                )}
+                                {incident.reportCount > 1 && (
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex items-center justify-center w-4 h-4 rounded-full bg-primary/20 text-primary text-[10px] font-bold">
+                                            {incident.reportCount}
+                                        </div>
+                                        <span className="text-xs font-medium text-primary">Reports</span>
                                     </div>
                                 )}
                             </div>

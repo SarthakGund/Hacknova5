@@ -1,7 +1,7 @@
 {
-    "name": "Field Responder - Crisis Management",
+    "name": "Field Responder - ResQnet",
     "short_name": "Field Responder",
-    "description": "Modern tactical field response platform for crisis management",
+    "description": "Modern tactical field response platform for ResQnet",
     "start_url": "/?source=pwa",
     "scope": "/",
     "display": "standalone",

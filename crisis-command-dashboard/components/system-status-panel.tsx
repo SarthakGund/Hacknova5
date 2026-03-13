@@ -20,69 +20,82 @@ export default function SystemStatusPanel() {
 
   return (
     <div className="p-4 space-y-3">
-      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">System Status</h3>
+      <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4 opacity-70">
+        System Infrastructure
+      </h3>
 
-      {/* Voice Call */}
-      <div className={`rounded-lg p-3 border border-border/50 ${getStatusBg(systemStatus.voiceCall.online)}`}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <Radio className={`w-4 h-4 flex-shrink-0 ${getStatusColor(systemStatus.voiceCall.online)}`} />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-foreground">Voice Call</p>
-              <p className="text-xs text-muted-foreground">{systemStatus.voiceCall.devices} channels</p>
+      <div className="space-y-3">
+        {/* Voice Call */}
+        <div className={`group rounded-xl p-3 border border-border/40 transition-all duration-300 hover:scale-[1.02] hover:shadow-apple-sm ${getStatusBg(systemStatus.voiceCall.online)}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${systemStatus.voiceCall.online ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                <Radio className={`w-4 h-4 ${getStatusColor(systemStatus.voiceCall.online)}`} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground tracking-tight">Voice Channels</p>
+                <p className="text-[10px] font-medium text-muted-foreground/80 uppercase tracking-wide">
+                  {systemStatus.voiceCall.online ? 'Channel Active' : 'Offline'}
+                </p>
+              </div>
             </div>
+            <div className={`w-2 h-2 rounded-full animate-pulse ${systemStatus.voiceCall.online ? 'bg-green-400' : 'bg-red-500'}`} />
           </div>
-          {systemStatus.voiceCall.online ? (
-            <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
-          ) : (
-            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-          )}
         </div>
-      </div>
 
-      {/* SMS */}
-      <div className={`rounded-lg p-3 border border-border/50 ${getStatusBg(systemStatus.sms.online)}`}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <MessageSquare className={`w-4 h-4 flex-shrink-0 ${getStatusColor(systemStatus.sms.online)}`} />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-foreground">SMS Gateway</p>
-              <p className="text-xs text-muted-foreground">{systemStatus.sms.devices} gateways</p>
+        {/* SMS */}
+        <div className={`group rounded-xl p-3 border border-border/40 transition-all duration-300 hover:scale-[1.02] hover:shadow-apple-sm ${getStatusBg(systemStatus.sms.online)}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${systemStatus.sms.online ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                <MessageSquare className={`w-4 h-4 ${getStatusColor(systemStatus.sms.online)}`} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground tracking-tight">SMS Gateway</p>
+                <p className="text-[10px] font-medium text-muted-foreground/80 uppercase tracking-wide">
+                  {systemStatus.sms.online ? 'Gateway Online' : 'Connection Failed'}
+                </p>
+              </div>
             </div>
+            <div className={`w-2 h-2 rounded-full animate-pulse ${systemStatus.sms.online ? 'bg-green-400' : 'bg-red-500'}`} />
           </div>
-          {systemStatus.sms.online ? (
-            <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
-          ) : (
-            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-          )}
         </div>
-      </div>
 
-      {/* Bluetooth Mesh */}
-      <div className={`rounded-lg p-3 border border-border/50 ${getStatusBg(systemStatus.bluetoothMesh.online)}`}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <Wifi className={`w-4 h-4 flex-shrink-0 ${getStatusColor(systemStatus.bluetoothMesh.online)}`} />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-foreground">Bluetooth Mesh</p>
-              <p className="text-xs text-muted-foreground">{systemStatus.bluetoothMesh.devices} devices</p>
+        {/* Bluetooth Mesh */}
+        <div className={`group rounded-xl p-3 border border-border/40 transition-all duration-300 hover:scale-[1.02] hover:shadow-apple-sm ${getStatusBg(systemStatus.bluetoothMesh.online)}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${systemStatus.bluetoothMesh.online ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                <Wifi className={`w-4 h-4 ${getStatusColor(systemStatus.bluetoothMesh.online)}`} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground tracking-tight">Bluetooth Mesh</p>
+                <p className="text-[10px] font-medium text-muted-foreground/80 uppercase tracking-wide">
+                  {systemStatus.bluetoothMesh.online ? 'Network Ready' : 'Scanning...'}
+                </p>
+              </div>
             </div>
+            <div className={`w-2 h-2 rounded-full animate-pulse ${systemStatus.bluetoothMesh.online ? 'bg-green-400' : 'bg-red-500'}`} />
           </div>
-          {systemStatus.bluetoothMesh.online ? (
-            <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
-          ) : (
-            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-          )}
         </div>
       </div>
 
       {/* Overall System Health */}
-      <div className="mt-3 pt-3 border-t border-border">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">Overall Health</span>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-green-400 rounded-full" />
-            <span className="font-semibold text-green-400">Operational</span>
+      <div className="mt-6 pt-4 border-t border-border/60">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 opacity-70">
+              Environment Health
+            </p>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+              <span className="text-[11px] font-bold text-foreground uppercase tracking-wide">Operational</span>
+            </div>
+          </div>
+          <div className="h-8 w-px bg-border/40" />
+          <div className="text-right">
+             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 opacity-70">Latency</p>
+             <p className="text-[11px] font-bold text-green-500">12ms</p>
           </div>
         </div>
       </div>
