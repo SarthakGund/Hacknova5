@@ -31,15 +31,26 @@ interface MapComponentProps {
     location: { lat: number; lng: number } | null
     assigned_incident_id?: number
   }>
+  vulnerabilityZones?: Array<{
+    id: number
+    name: string
+    description: string
+    lat: number
+    lng: number
+    radius: number
+    severity: string
+    status: string
+  }>
   isLocationPickerActive?: boolean
   onMapClick?: (lat: number, lng: number) => void
 }
 
-export default function MapComponent({ incidents, selectedIncident, selectedPersonnel, personnel, resources, isLocationPickerActive, onMapClick }: MapComponentProps) {
+export default function MapComponent({ incidents, selectedIncident, selectedPersonnel, personnel, resources, vulnerabilityZones, isLocationPickerActive, onMapClick }: MapComponentProps) {
   const mapRef = useRef<L.Map | null>(null)
   const markersRef = useRef<Record<number, L.Marker>>({})
   const personnelMarkersRef = useRef<Record<number, L.Marker>>({})
   const resourceMarkersRef = useRef<Record<number, L.Marker>>({})
+  const zoneCirclesRef = useRef<Record<number, L.Circle>>({})
 
   const prevSelectedIdRef = useRef<number | null>(null)
   const prevSelectedPersonnelIdRef = useRef<number | null>(null)
@@ -270,6 +281,68 @@ export default function MapComponent({ incidents, selectedIncident, selectedPers
 
         resourceMarkersRef.current[resource.id] = marker
         })
+    }
+
+    // Update vulnerability zones
+    Object.values(zoneCirclesRef.current).forEach((circle) => circle.remove())
+    zoneCirclesRef.current = {}
+
+    if (vulnerabilityZones) {
+      vulnerabilityZones.forEach((zone) => {
+        let color = "#ef4444" // red for high severity
+        if (zone.severity === "medium") color = "#eab308"
+        
+        const circle = L.circle([zone.lat, zone.lng], {
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.2,
+          radius: zone.radius || 300,
+          weight: 2,
+          dashArray: "5, 5"
+        }).bindPopup(`
+          <div class="p-2 min-w-[200px]">
+            <div class="font-bold text-[15px] mb-1 text-red-500">⚠ Vulnerability Zone</div>
+            <div class="font-semibold text-sm mb-1">${zone.name}</div>
+            <div class="text-xs text-muted-foreground mt-1">${zone.description}</div>
+            <div class="text-xs mt-2 border-t pt-2 cursor-pointer text-blue-500 hover:text-blue-600 font-medium fetch-weather-btn" data-lat="${zone.lat}" data-lng="${zone.lng}">
+              Check Current Weather
+            </div>
+            <div id="weather-result-${zone.lat}-${zone.lng}" class="text-xs mt-1 font-mono"></div>
+          </div>
+        `).addTo(mapRef.current!)
+
+        circle.on('popupopen', () => {
+          setTimeout(() => {
+            const btn = document.querySelector(`.fetch-weather-btn[data-lat="${zone.lat}"]`)
+            if (btn) {
+              btn.addEventListener('click', async (e) => {
+                const target = e.target as HTMLElement
+                const lat = target.getAttribute('data-lat')
+                const lng = target.getAttribute('data-lng')
+                const resultDiv = document.getElementById(`weather-result-${lat}-${lng}`)
+                if (resultDiv) resultDiv.innerText = "Fetching..."
+
+                try {
+                  const res = await fetch(`http://localhost:5000/api/weather/current-status?latitude=${lat}&longitude=${lng}`)
+                  const data = await res.json()
+                  if (data.success && data.current_weather) {
+                    if (resultDiv) resultDiv.innerHTML = `
+                      Temp: ${data.current_weather.temperature}°C<br/>
+                      Wind: ${data.current_weather.windspeed} km/h
+                    `
+                  } else {
+                    if (resultDiv) resultDiv.innerText = "Weather unavailable"
+                  }
+                } catch {
+                  if (resultDiv) resultDiv.innerText = "Error fetching weather"
+                }
+              })
+            }
+          }, 100)
+        })
+
+        zoneCirclesRef.current[zone.id] = circle
+      })
     }
 
     // Fit bounds on first load if we have data

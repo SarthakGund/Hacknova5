@@ -274,6 +274,13 @@ export const notificationsAPI = {
   },
 };
 
+// Vulnerability Zones API
+export const vulnerabilityZonesAPI = {
+  getAll: async () => {
+    return fetchAPI('/vulnerability-zones/');
+  }
+};
+
 // Resources API
 export const resourcesAPI = {
   getAll: async (filters?: { status?: string; type?: string; is_public?: boolean }) => {
@@ -305,6 +312,16 @@ export const resourcesAPI = {
   },
 };
 
+// Weather API
+export const weatherAPI = {
+  getCurrent: async (lat: number, lng: number) => {
+    return fetchAPI('/weather/current-status', {
+      method: 'POST',
+      body: JSON.stringify({ latitude: lat, longitude: lng }),
+    });
+  },
+};
+
 export default {
   incidents: incidentsAPI,
   personnel: personnelAPI,
@@ -313,4 +330,6 @@ export default {
   analytics: analyticsAPI,
   alerts: alertsAPI,
   notifications: notificationsAPI,
+  weather: weatherAPI,
+  vulnerabilityZones: vulnerabilityZonesAPI,
 };

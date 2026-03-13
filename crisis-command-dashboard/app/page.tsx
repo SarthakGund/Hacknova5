@@ -9,7 +9,8 @@ import CommunicationsPanel from "@/components/communications-panel"
 import { PersonnelManagement } from "@/components/personnel-management"
 import { ResourceManagement } from "@/components/resource-management"
 import EvidenceGallery from "@/components/evidence-gallery"
-import { incidentsAPI, personnelAPI, resourcesAPI } from "@/lib/api"
+import { WeatherPanel } from "@/components/weather-panel"
+import { incidentsAPI, personnelAPI, resourcesAPI, vulnerabilityZonesAPI } from "@/lib/api"
 import { useWebSocket } from "@/hooks/use-websocket"
 
 // Dynamic import for Leaflet map to avoid SSR issues
@@ -36,6 +37,7 @@ export default function CrisisCommandDashboard() {
   const [isLocationPickerActive, setIsLocationPickerActive] = useState(false)
   const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [resources, setResources] = useState<any[]>([])
+  const [vulnerabilityZones, setVulnerabilityZones] = useState<any[]>([])
 
   const handleActivateLocationPicker = () => {
     setIsLocationPickerActive(true)
@@ -110,6 +112,16 @@ export default function CrisisCommandDashboard() {
           location: r.lat && r.lng ? { lat: r.lat, lng: r.lng } : null
         }))
         setResources(currentResources)
+      }
+
+      // Fetch vulnerability zones
+      try {
+        const vzResponse = await vulnerabilityZonesAPI.getAll()
+        if (vzResponse.success) {
+          setVulnerabilityZones(vzResponse.zones)
+        }
+      } catch (e) {
+        console.error("Failed to fetch vulnerability zones", e)
       }
 
       // Fetch personnel
@@ -443,15 +455,18 @@ export default function CrisisCommandDashboard() {
                 <div className="text-muted-foreground">Loading map data...</div>
               </div>
             ) : (
-              <MapComponent
-                incidents={incidents}
-                selectedIncident={selectedIncident}
-                selectedPersonnel={selectedPersonnel}
-                personnel={personnel}
-                resources={resources}
-                isLocationPickerActive={isLocationPickerActive}
-                onMapClick={handleMapClick}
-              />
+              <>
+                <MapComponent
+                  incidents={incidents}
+                  selectedIncident={selectedIncident}
+                  selectedPersonnel={selectedPersonnel}
+                  personnel={personnel}
+                  resources={resources}
+                  vulnerabilityZones={vulnerabilityZones}
+                  isLocationPickerActive={isLocationPickerActive}
+                  onMapClick={handleMapClick}
+                />
+              </>
             )}
           </div>
         </div>
