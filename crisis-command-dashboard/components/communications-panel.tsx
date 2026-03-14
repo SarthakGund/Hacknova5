@@ -1,8 +1,7 @@
 "use client"
 
-import { Send, Loader2 } from "lucide-react"
+import { Send, Loader2, MessageSquare } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
-import { cn } from "@/lib/utils"
 import { useWebSocket } from "@/hooks/use-websocket"
 
 export default function CommunicationsPanel() {
@@ -85,7 +84,7 @@ export default function CommunicationsPanel() {
         return () => {
             off('broadcast_received', handleBroadcastMessage)
         }
-    }, [isConnected, on, off, currentUser])
+    }, [isConnected, currentUser, on, off])
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -99,12 +98,11 @@ export default function CommunicationsPanel() {
         try {
             setIsSending(true)
 
-            // Send broadcast message via WebSocket
             emit('broadcast_message', {
                 message: pendingMessage,
                 sender_name: currentUser.name,
                 sender_id: currentUser.id,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
             })
 
             setPendingMessage("")
@@ -115,7 +113,7 @@ export default function CommunicationsPanel() {
         }
     }
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
+    const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
             handleSendMessage()
@@ -123,91 +121,73 @@ export default function CommunicationsPanel() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-background">
+        <div className="flex flex-col h-full bg-[#F8F9FA]">
+            {/* Header */}
+            <div className="p-4 border-b border-[#E9ECEF] bg-white flex justify-between items-center shrink-0">
+                <h2 className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                   <MessageSquare className="w-5 h-5 text-[#007BFF]" />
+                   Broadcast Channel
+                </h2>
+                <div className="flex items-center gap-2">
+                   <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                   <span className="text-xs font-bold uppercase tracking-wider text-gray-500">{isConnected ? 'LIVE' : 'OFFLINE'}</span>
+                </div>
+            </div>
+
             {/* Messages Area */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.length === 0 ? (
-                    <div className="text-center py-20">
-                        <p className="text-muted-foreground">No messages yet. Start the conversation.</p>
+                    <div className="text-center py-20 bg-white border border-[#E9ECEF] rounded-xl">
+                        <MessageSquare className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+                        <p className="text-sm text-gray-500 font-medium">No messages yet.</p>
+                        <p className="text-xs text-gray-400 mt-1">Start the conversation by typing below.</p>
                     </div>
                 ) : (
-                    messages.map((msg) => (
-                        <div
-                            key={msg.id}
-                            className={cn(
-                                "flex",
-                                msg.type === "sent" ? "justify-end" : "justify-start"
-                            )}
-                        >
-                            <div className={cn(
-                                "max-w-[80%] space-y-1",
-                                msg.type === "sent" && "items-end"
-                            )}>
-                                {/* Sender Name */}
-                                {msg.type !== "sent" && msg.type !== "system" && (
-                                    <div className="text-xs font-medium text-muted-foreground px-3">
-                                        {msg.sender_name} {msg.sender_id && `(ID: ${msg.sender_id})`}
-                                    </div>
-                                )}
-                                {msg.type === "sent" && (
-                                    <div className="text-xs font-medium text-muted-foreground px-3 text-right">
-                                        You {msg.sender_id !== null && `(ID: ${msg.sender_id})`}
-                                    </div>
-                                )}
-
-                                {/* Message Bubble */}
-                                <div className={cn(
-                                    "rounded-2xl px-4 py-2.5 shadow-sm",
-                                    msg.type === "sent" && "bg-primary text-primary-foreground rounded-tr-sm",
-                                    msg.type === "received" && "bg-card border border-border rounded-tl-sm",
-                                    msg.type === "system" && "bg-warning/10 border border-warning/30 text-warning-foreground text-center",
-                                )}>
-                                    <p className="text-sm leading-relaxed">{msg.message}</p>
+                    messages.map((msg) => {
+                        const isMine = msg.sender_id === currentUser?.id;
+                        return (
+                            <div key={msg.id} className={`flex flex-col max-w-[85%] ${isMine ? "ml-auto items-end" : "mr-auto items-start"}`}>
+                                <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400 mb-1 ml-1">
+                                    {isMine ? "You" : msg.sender_name}
+                                </span>
+                                <div className={`p-3 rounded-2xl shadow-sm text-sm ${isMine ? "bg-[#007BFF] text-white rounded-tr-sm" : "bg-white border border-[#E9ECEF] text-gray-800 rounded-tl-sm"}`}>
+                                    {msg.message}
                                 </div>
-
-                                {/* Time */}
-                                <div className={cn(
-                                    "flex items-center gap-1 px-3 text-xs text-muted-foreground",
-                                    msg.type === "sent" && "justify-end"
-                                )}>
-                                    <span>{msg.time}</span>
-                                </div>
+                                <span className="text-[9px] font-medium text-gray-400 mt-1 mr-1">
+                                    {msg.time ?? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
 
             {/* Input Area */}
-            <div className="border-t border-border p-4 bg-card">
-                <div className="flex items-end gap-2">
-                    <div className="flex-1 relative">
-                        <textarea
-                            value={pendingMessage}
-                            onChange={(e) => setPendingMessage(e.target.value)}
-                            onKeyPress={handleKeyPress}
-                            placeholder="Type a message to all field responders..."
-                            className="w-full px-4 py-3 pr-12 bg-background border border-border rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all min-h-[50px] max-h-[120px]"
-                            rows={1}
-                            disabled={isSending || !isConnected}
-                        />
-                    </div>
+            <div className="p-4 border-t border-[#E9ECEF] bg-white shrink-0">
+                <div className="flex relative items-end">
+                    <textarea
+                        value={pendingMessage}
+                        onChange={(e) => setPendingMessage(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        placeholder="Type a broadcast message..."
+                        className="w-full bg-[#F8F9FA] border border-[#E9ECEF] rounded-xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:border-[#007BFF] focus:ring-1 focus:ring-[#007BFF] resize-none h-12 min-h-[48px] max-h-32 shadow-inner"
+                        disabled={!currentUser || isSending}
+                        rows={1}
+                    />
                     <button
                         onClick={handleSendMessage}
-                        disabled={!pendingMessage.trim() || isSending || !isConnected}
-                        className="p-3 bg-primary text-primary-foreground rounded-2xl hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                        disabled={!pendingMessage.trim() || isSending || !currentUser}
+                        className="absolute right-2 bottom-2 p-1.5 bg-[#007BFF] text-white rounded-lg hover:bg-[#0056b3] disabled:opacity-50 disabled:hover:bg-[#007BFF] transition-colors shadow-sm"
                     >
                         {isSending ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
-                            <Send className="w-5 h-5" />
+                            <Send className="w-4 h-4" />
                         )}
                     </button>
                 </div>
-                {!isConnected && (
-                    <div className="mt-2 text-xs text-destructive">
-                        Disconnected from server. Reconnecting...
-                    </div>
+                {!currentUser && (
+                    <p className="text-[10px] text-[#DC3545] font-bold uppercase tracking-wider mt-2">System offline: Cannot send messages.</p>
                 )}
             </div>
         </div>

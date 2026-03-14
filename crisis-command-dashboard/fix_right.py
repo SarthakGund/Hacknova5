@@ -1,83 +1,13 @@
-"use client"
+﻿import re
 
-import { useState, useEffect } from "react"
-import { Radio, MessageSquare, Wifi, AlertCircle, TrendingUp, PieChart } from "lucide-react"
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
-import { analyticsAPI } from "@/lib/api"
+with open('c:/ResQnet-main/ResQnet-prasham-new/crisis-command-dashboard/components/right-sidebar.tsx', 'r', encoding='utf-8') as f:
+    text = f.read()
 
-interface RightSidebarProps {
-  incidents: Array<{
-    id: number
-    title: string
-    severity: "critical" | "high" | "medium" | "low"
-    responders: string[]
-    resources: string[]
-    created_at?: string // Added to support time-series
-  }>
-}
-
-export default function RightSidebar({ incidents }: RightSidebarProps) {
-  const [loading, setLoading] = useState(true)
-  const [analyticsData, setAnalyticsData] = useState<any>(null)
-
-  const systemStatus = {
-    voiceCall: { online: true, devices: 3 },
-    sms: { online: true, devices: 5 },
-    bluetoothMesh: { online: true, devices: 12 },
-  }
-
-  useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        setLoading(true)
-        const response = await analyticsAPI.getDashboard()
-        if (response.success) {
-          setAnalyticsData(response.analytics)
-        }
-      } catch (error) {
-        console.error("Failed to fetch analytics:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchAnalytics()
-    // Refresh every minute
-    const interval = setInterval(fetchAnalytics, 60000)
-    return () => clearInterval(interval)
-  }, [incidents.length])
-
-  const resourceAllocation = analyticsData?.resources?.resources_by_type?.map((r: any) => ({
-    name: r.type.charAt(0).toUpperCase() + r.type.slice(1),
-    value: r.count,
-  })) || []
-
-  const generateIncidentsOverTime = () => {
-    const hoursMap = new Map<string, number>()
-    const now = new Date()
-
-    for (let i = 7; i >= 0; i--) {
-      const d = new Date(now.getTime() - i * 60 * 60 * 1000)
-      const hourKey = d.toLocaleTimeString("en-US", { hour: "2-digit", hour12: false }) + ":00"
-      hoursMap.set(hourKey, 0)
-    }
-
-    incidents.forEach((inc) => {
-      if (inc.created_at) {
-        const d = new Date(inc.created_at)
-        const hourKey = d.toLocaleTimeString("en-US", { hour: "2-digit", hour12: false }) + ":00"
-        if (hoursMap.has(hourKey)) {
-          hoursMap.set(hourKey, (hoursMap.get(hourKey) || 0) + 1)
-        }
-      }
-    })
-
-    return Array.from(hoursMap.entries()).map(([time, count]) => ({ time, count }))
-  }
-
-  const incidentsOverTime = generateIncidentsOverTime()
-
-  return (
+idx = text.find('  return (')
+if idx != -1:
+    before = text[:idx]
+    
+    new_jsx = '''  return (
     <div className="flex flex-col h-full bg-[#F8F9FA] overflow-y-auto hidden-scrollbar p-5 space-y-6">
       
       {/* Analytics Overview */}
@@ -96,17 +26,13 @@ export default function RightSidebar({ incidents }: RightSidebarProps) {
             <div className="bg-white p-3 rounded-lg border border-[#E9ECEF] shadow-sm">
               <div className="text-[10px] uppercase font-bold text-gray-400 mb-1">Avg Response</div>
               <div className="text-lg font-bold text-gray-800">
-                {analyticsData?.performance?.average_response_time_minutes
-                  ? `${Math.round(analyticsData.performance.average_response_time_minutes)}m`
-                  : "--"}
+                {analyticsData?.performance?.average_response_time_minutes ? ${Math.round(analyticsData.performance.average_response_time_minutes)}m : '--'}
               </div>
             </div>
             <div className="bg-white p-3 rounded-lg border border-[#E9ECEF] shadow-sm">
               <div className="text-[10px] uppercase font-bold text-gray-400 mb-1">Resolution Rate</div>
               <div className="text-lg font-bold text-green-600">
-                {analyticsData?.performance?.resolution_rate_percent !== undefined
-                  ? `${Math.round(analyticsData.performance.resolution_rate_percent)}%`
-                  : "--"}
+                {analyticsData?.performance?.resolution_rate_percent !== undefined ? ${Math.round(analyticsData.performance.resolution_rate_percent)}% : '--'}
               </div>
             </div>
           </div>
@@ -171,8 +97,8 @@ export default function RightSidebar({ incidents }: RightSidebarProps) {
         <div className="space-y-2">
           <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-[#E9ECEF] shadow-sm">
             <div className="flex items-center gap-3">
-              <div className={`p-1.5 rounded-md ${systemStatus.voiceCall.online ? "bg-green-100" : "bg-red-100"}`}>
-                <Radio className={`w-4 h-4 ${systemStatus.voiceCall.online ? "text-green-600" : "text-red-600"}`} />
+              <div className={p-1.5 rounded-md }>
+                <Radio className={w-4 h-4 } />
               </div>
               <div>
                 <div className="text-sm font-bold text-gray-800">Voice AI</div>
@@ -180,8 +106,8 @@ export default function RightSidebar({ incidents }: RightSidebarProps) {
               </div>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${systemStatus.voiceCall.online ? "bg-green-500" : "bg-red-500"}`} />
-              <span className={`text-xs font-bold uppercase tracking-wider ${systemStatus.voiceCall.online ? "text-green-600" : "text-red-600"}`}>
+              <div className={w-2 h-2 rounded-full } />
+              <span className={	ext-xs font-bold uppercase tracking-wider }>
                 {systemStatus.voiceCall.online ? "OK" : "FAIL"}
               </span>
             </div>
@@ -189,8 +115,8 @@ export default function RightSidebar({ incidents }: RightSidebarProps) {
           
           <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-[#E9ECEF] shadow-sm">
             <div className="flex items-center gap-3">
-              <div className={`p-1.5 rounded-md ${systemStatus.sms.online ? "bg-green-100" : "bg-red-100"}`}>
-                <MessageSquare className={`w-4 h-4 ${systemStatus.sms.online ? "text-green-600" : "text-red-600"}`} />
+              <div className={p-1.5 rounded-md }>
+                <MessageSquare className={w-4 h-4 } />
               </div>
               <div>
                 <div className="text-sm font-bold text-gray-800">SMS Gateway</div>
@@ -198,8 +124,8 @@ export default function RightSidebar({ incidents }: RightSidebarProps) {
               </div>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${systemStatus.sms.online ? "bg-green-500" : "bg-red-500"}`} />
-              <span className={`text-xs font-bold uppercase tracking-wider ${systemStatus.sms.online ? "text-green-600" : "text-red-600"}`}>
+              <div className={w-2 h-2 rounded-full } />
+              <span className={	ext-xs font-bold uppercase tracking-wider }>
                 {systemStatus.sms.online ? "OK" : "FAIL"}
               </span>
             </div>
@@ -207,8 +133,8 @@ export default function RightSidebar({ incidents }: RightSidebarProps) {
 
           <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-[#E9ECEF] shadow-sm">
             <div className="flex items-center gap-3">
-              <div className={`p-1.5 rounded-md ${systemStatus.bluetoothMesh.online ? "bg-green-100" : "bg-red-100"}`}>
-                <Wifi className={`w-4 h-4 ${systemStatus.bluetoothMesh.online ? "text-green-600" : "text-red-600"}`} />
+              <div className={p-1.5 rounded-md }>
+                <Wifi className={w-4 h-4 } />
               </div>
               <div>
                 <div className="text-sm font-bold text-gray-800">LoRaWAN Mesh</div>
@@ -216,8 +142,8 @@ export default function RightSidebar({ incidents }: RightSidebarProps) {
               </div>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${systemStatus.bluetoothMesh.online ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
-              <span className={`text-xs font-bold uppercase tracking-wider ${systemStatus.bluetoothMesh.online ? "text-green-600" : "text-red-600"}`}>
+              <div className={w-2 h-2 rounded-full } />
+              <span className={	ext-xs font-bold uppercase tracking-wider }>
                 {systemStatus.bluetoothMesh.online ? "SYNCED" : "DOWN"}
               </span>
             </div>
@@ -227,3 +153,10 @@ export default function RightSidebar({ incidents }: RightSidebarProps) {
     </div>
   )
 }
+'''
+    
+    with open('c:/ResQnet-main/ResQnet-prasham-new/crisis-command-dashboard/components/right-sidebar.tsx', 'w', encoding='utf-8') as f:
+        f.write(before + new_jsx)
+        print('Right sidebar replaced successfully')
+else:
+    print('Failed to find return in right-sidebar.tsx')
