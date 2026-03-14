@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 from utils.geo_utils import calculate_distance
 from utils.notification_utils import broadcast_incident_notification
+from utils.agenti_utils import trigger_agent_for_incident
 
 sos_mesh_bp = Blueprint('sos_mesh', __name__)
 
@@ -211,6 +212,18 @@ def receive_sos_mesh():
         'message': 'New incident created from SOS mesh message',
         'notification': notification
     }), 201
+
+    # 🤖 FloodShield: trigger AI agent for critical/high SOS incidents
+    trigger_agent_for_incident(
+        incident_id=incident_id,
+        title=title,
+        incident_type=incident_type,
+        severity=severity,
+        lat=data['latitude'],
+        lng=data['longitude'],
+        description=description,
+        source='sosmesh',
+    )
 
 
 @sos_mesh_bp.route('/sosmesh/messages', methods=['GET'])

@@ -146,3 +146,86 @@
   @apply text-card-foreground;
   margin: 0 !important;
 }
+
+/* ── FloodShield Design System ──────────────────────────────────────────── */
+:root {
+  /* Brand palette */
+  --fs-brand:        #0C4A6E;
+  --fs-brand-light:  #0EA5E9;
+  --fs-brand-dark:   #082F49;
+  --fs-danger:       #DC2626;
+  --fs-warning:      #F59E0B;
+  --fs-safe:         #059669;
+  --fs-neutral:      #94A3B8;
+  --fs-bg-base:      #F0F9FF;
+  --fs-bg-card:      #FFFFFF;
+  --fs-text-primary: #0F172A;
+  --fs-text-muted:   #475569;
+
+  /* Typography — CSS variables set by Next.js font loader */
+  font-family: var(--font-body), 'Inter', sans-serif;
+
+  /* Card tokens */
+  --fs-radius-card:  0.75rem;
+  --fs-shadow-card:  0 1px 3px 0 rgb(12 74 110 / 0.08),
+                     0 4px 16px -2px rgb(12 74 110 / 0.12);
+}
+
+/* Display headings use Space Grotesk */
+h1, h2, h3, .font-display {
+  font-family: var(--font-display), 'Space Grotesk', sans-serif;
+}
+
+/* FloodShield card */
+.fs-card {
+  background: var(--fs-bg-card);
+  border-radius: var(--fs-radius-card);
+  box-shadow: var(--fs-shadow-card);
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+.fs-card:hover {
+  box-shadow: 0 4px 24px -4px rgb(12 74 110 / 0.18);
+  transform: translateY(-1px);
+}
+
+/* SOS pulse ring */
+@keyframes sos-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(220 38 38 / 0.6); }
+  50%       { box-shadow: 0 0 0 10px rgb(220 38 38 / 0); }
+}
+.sos-pulse {
+  animation: sos-pulse 1.6s ease-in-out infinite;
+}
+
+/* Water ripple on map markers */
+@keyframes water-ripple {
+  0%   { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.water-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--fs-brand-light);
+  animation: water-ripple 1.8s ease-out infinite;
+}
+
+/* Agent stream spinner */
+@keyframes agent-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.agent-spinner {
+  width: 1rem; height: 1rem;
+  border: 2px solid var(--fs-brand-light);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: agent-spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+/* Sensor value coloring */
+.sensor-safe    { color: var(--fs-safe); }
+.sensor-warning { color: var(--fs-warning); }
+.sensor-danger  { color: var(--fs-danger); }

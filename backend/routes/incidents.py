@@ -5,6 +5,7 @@ from utils.file_utils import save_file
 from utils.geo_utils import calculate_distance
 from utils.notification_utils import broadcast_incident_notification
 from utils.ai_utils import ai_handler
+from utils.agenti_utils import trigger_agent_for_incident
 from config import Config
 import threading
 import os
@@ -298,7 +299,19 @@ def create_incident():
         data['title'],
         'critical' if data['severity'] == 'critical' else 'high'
     )
-    
+
+    # 🤖 FloodShield: trigger AI agent for critical/high incidents
+    trigger_agent_for_incident(
+        incident_id=incident_id,
+        title=data['title'],
+        incident_type=data['type'],
+        severity=data['severity'],
+        lat=data['lat'],
+        lng=data['lng'],
+        description=data.get('description', ''),
+        source=data.get('report_source', 'web'),
+    )
+
     return jsonify({
         'success': True,
         'incident_id': incident_id,

@@ -30,6 +30,13 @@ class Config:
     
     # Notifications
     CRITICAL_SEVERITY_LEVELS = ['critical', 'high']
+
+    # ── FloodShield integration ────────────────────────────────────────────
+    # agenti_bluuu FastAPI URL — receives forwarded events for AI agent processing
+    AGENTI_BLUUU_URL = os.environ.get('AGENTI_BLUUU_URL', 'http://localhost:8000')
+    # Sensor SSE base URL (same agenti_bluuu service)
+    SENSOR_STREAM_URL = os.environ.get('SENSOR_STREAM_URL', 'http://localhost:8000')
+
     
     @staticmethod
     def init_app(app):
