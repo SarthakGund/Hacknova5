@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Remote Console</title>
+  <style>
+    body{font-family:Inter,system-ui,Arial,sans-serif;margin:0;background:#0b1020;color:#e7ecff}
+    .wrap{padding:20px;max-width:1250px;margin:0 auto}
+    .links{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .links a{color:#cdd8ff;text-decoration:none;border:1px solid #304085;border-radius:9px;padding:8px 12px;background:#121d3e}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+    .card{border:1px solid #2a3965;border-radius:12px;background:#121a33;padding:14px}
+    input,select,textarea,button{width:100%;padding:10px;border-radius:8px;border:1px solid #3c4f91;background:#0f1730;color:#fff}
+    button{border:none;background:linear-gradient(135deg,#3a63ff,#5d7eff);cursor:pointer;font-weight:600}
+    .log{white-space:pre-wrap;max-height:300px;overflow:auto;background:#0a1125;border:1px solid #2a3965;border-radius:8px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    .mini{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .event-list{max-height:330px;overflow:auto}
+    .event{border:1px solid #2a3965;border-radius:8px;padding:8px;background:#0f1730;margin-bottom:8px}
+    @media(max-width:900px){.row,.mini{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1 style="margin:0 0 8px">Remote Webhook Console</h1>
+    <div class="links">
+      <a href="/">Home</a><a href="/agent-page">Agent</a><a href="/sensor-page">Sensor</a><a href="/video-page">Video</a><a href="/docs-page">Docs</a>
+    </div>
+
+    <div class="row">
+      <section class="card">
+        <h3 style="margin:0 0 8px">Sensor Spike + Stream</h3>
+        <label>Sensor</label><select id="sensor"></select>
+        <label>Spike Value</label><input id="value" type="number" step="0.1" value="3.8" />
+        <label>Duration (s)</label><input id="duration" type="number" min="1" value="10" />
+        <button id="spikeBtn">POST /remote/webhook/spike</button>
+        <div id="spikeOut" class="log" style="margin-top:8px"></div>
+        <label>Stream Sensor</label><select id="streamSensor"></select>
+        <button id="streamBtn">Connect SSE</button>
+        <div id="streamOut" class="log" style="margin-top:8px"></div>
+      </section>
+
+      <section class="card">
+        <h3 style="margin:0 0 8px">Event Simulation</h3>
+        <div class="mini">
+          <button data-sim="sos">simulate/sos</button>
+          <button data-sim="flood">simulate/flood</button>
+          <button data-sim="weather">simulate/weather</button>
+          <button data-sim="rescue">simulate/rescue</button>
+          <button data-sim="supply">simulate/supply</button>
+          <button id="refreshEventsBtn">GET events</button>
+        </div>
+        <div id="simOut" class="log" style="margin-top:8px"></div>
+      </section>
+    </div>
+
+    <div class="row">
+      <section class="card">
+        <h3 style="margin:0 0 8px">Post Custom Event</h3>
+        <textarea id="customEvent" class="log" style="min-height:120px"></textarea>
+        <button id="postEventBtn">POST /remote/webhook/events</button>
+        <div id="postOut" class="log" style="margin-top:8px"></div>
+      </section>
+      <section class="card">
+        <h3 style="margin:0 0 8px">Event Store Viewer</h3>
+        <div id="eventStore" class="event-list"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h3 style="margin:0 0 8px">Dynamic AI (Remote → Agent)</h3>
+      <div class="mini">
+        <button id="analyzeLatestBtn">Analyze Latest Event</button>
+        <button id="analyzeRecentBtn">Analyze Last 5 (Streaming)</button>
+      </div>
+      <div id="aiOut" class="log" style="margin-top:8px"></div>
+    </section>
+  </div>
+
+  <script>
+    let source = null;
+    const sensorSel = document.getElementById('sensor');
+    const streamSel = document.getElementById('streamSensor');
+    const streamOut = document.getElementById('streamOut');
+    const spikeOut = document.getElementById('spikeOut');
+    const simOut = document.getElementById('simOut');
+    const postOut = document.getElementById('postOut');
+    const aiOut = document.getElementById('aiOut');
+    const eventStore = document.getElementById('eventStore');
+
+    document.getElementById('customEvent').value = JSON.stringify({
+      event_type: 'sos',
+      source: 'remote_console',
+      payload: { message: 'Need evacuation support', people: 4, location: { lat: 28.61, lon: 77.20, name: 'Street 12' } }
+    }, null, 2);
+
+    const prepend = (el, line) => el.textContent = `${line}\n` + el.textContent;
+
+    async function loadSensors(){
+      const res = await fetch('/sensors/configs');
+      const data = await res.json();
+      const options = data.map(x=>`<option value="${x.sensor_id}">${x.sensor_id} (${x.unit})</option>`).join('');
+      sensorSel.innerHTML = options; streamSel.innerHTML = options;
+    }
+
+    async function refreshEvents(){
+      const res = await fetch('/remote/webhook/events');
+      const data = await res.json();
+      eventStore.innerHTML = (data||[]).slice().reverse().map(ev => `
+        <div class="event">
+          <div><strong>${ev.event_type}</strong> · ${ev.source || 'unknown'}</div>
+          <div style="font-size:11px;color:#9fb0f0">${ev.timestamp || ''}</div>
+          <pre class="log" style="max-height:150px">${JSON.stringify(ev.payload, null, 2)}</pre>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('spikeBtn').addEventListener('click', async () => {
+      const payload = { sensor_id: sensorSel.value, spike_value: Number(document.getElementById('value').value), duration_seconds: Number(document.getElementById('duration').value) };
+      const res = await fetch('/remote/webhook/spike', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      spikeOut.textContent = JSON.stringify(await res.json(), null, 2);
+    });
+
+    document.getElementById('streamBtn').addEventListener('click', () => {
+      if (source) source.close();
+      streamOut.textContent = '';
+      source = new EventSource(`/sensors/stream/${streamSel.value}`);
+      source.onmessage = (e) => {
+        try { const d = JSON.parse(e.data); prepend(streamOut, `[${new Date().toLocaleTimeString()}] ${d.sensor_id}: ${d.value} ${d.unit}`); }
+        catch { prepend(streamOut, e.data); }
+      };
+      source.onerror = () => prepend(streamOut, 'Stream disconnected.');
+    });
+
+    document.querySelectorAll('[data-sim]').forEach(btn => btn.addEventListener('click', async () => {
+      const sim = btn.getAttribute('data-sim');
+      const res = await fetch(`/remote/webhook/simulate/${sim}`, { method:'POST' });
+      simOut.textContent = JSON.stringify(await res.json(), null, 2);
+      await refreshEvents();
+    }));
+
+    document.getElementById('refreshEventsBtn').addEventListener('click', refreshEvents);
+
+    document.getElementById('postEventBtn').addEventListener('click', async () => {
+      try {
+        const body = JSON.parse(document.getElementById('customEvent').value);
+        const res = await fetch('/remote/webhook/events', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        postOut.textContent = JSON.stringify(await res.json(), null, 2);
+        await refreshEvents();
+      } catch (e) { postOut.textContent = `Invalid JSON or request failed: ${e}`; }
+    });
+
+    document.getElementById('analyzeLatestBtn').addEventListener('click', async () => {
+      const events = await (await fetch('/remote/webhook/events')).json();
+      const latest = (events || []).slice(-1)[0];
+      const message = latest ? `Analyze latest event and suggest actions: ${JSON.stringify(latest)}` : 'No events available. Give preparedness steps.';
+      const res = await fetch('/agent/invoke', {
+        method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ message, dry_run: true, max_iterations: 20, session_id: 'remote-dynamic-ai', remember: true })
+      });
+      const data = await res.json();
+      aiOut.textContent = JSON.stringify({ latest_event: latest || null, output: data.output, tool_calls: data.tool_calls, session_id: data.session_id, memory_turns: data.memory_turns }, null, 2);
+    });
+
+    document.getElementById('analyzeRecentBtn').addEventListener('click', async () => {
+      const events = await (await fetch('/remote/webhook/events')).json();
+      const recent = (events || []).slice(-5);
+      const message = recent.length ? `Analyze these recent events and prioritize actions: ${JSON.stringify(recent)}` : 'No recent events. Return generic response plan.';
+      const res = await fetch('/agent/invoke/stream', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ message, dry_run: true, max_iterations: 30, session_id: 'remote-dynamic-ai', remember: true })
+      });
+      if (!res.ok || !res.body) { aiOut.textContent = await res.text(); return; }
+      aiOut.textContent = 'Streaming...\n';
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream: true});
+        const frames = buffer.split('\n\n');
+        buffer = frames.pop() || '';
+        for (const frame of frames) {
+          if (!frame.trim()) continue;
+          let ev='message', dt='';
+          for (const line of frame.split('\n')) { if (line.startsWith('event:')) ev=line.slice(6).trim(); else if (line.startsWith('data:')) dt += line.slice(5).trim(); }
+          let payload = {}; try { payload = JSON.parse(dt || '{}'); } catch { payload = {raw: dt}; }
+          if (ev === 'output_chunk') aiOut.textContent += payload.delta || '';
+          else if (ev === 'tool_call') aiOut.textContent += `\n\n[tool] ${(payload.tool_call || {}).name || 'unknown_tool'}`;
+          else if (ev === 'final') aiOut.textContent = JSON.stringify({ recent_events: recent, output: payload.output, tool_calls: payload.tool_calls, session_id: payload.session_id, memory_turns: payload.memory_turns }, null, 2);
+        }
+      }
+    });
+
+    loadSensors();
+    refreshEvents();
+  </script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ops Home</title>
+  <style>
+    body{font-family:Inter,system-ui,Arial,sans-serif;margin:0;background:#0b1020;color:#e7ecff}
+    .layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+    .side{border-right:1px solid #2a3965;padding:18px;background:#0f1730}
+    .brand{font-weight:700;margin-bottom:12px}
+    .nav a{display:block;color:#cdd8ff;text-decoration:none;padding:10px;border:1px solid #304085;border-radius:10px;margin-bottom:8px;background:#121d3e}
+    .main{padding:22px}
+    .hero,.card{border:1px solid #2a3965;border-radius:14px;background:#121a33;padding:16px}
+    .hero{margin-bottom:14px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .full{grid-column:1/-1}
+    .feed{background:#0a1125;border:1px dashed #2a3965;border-radius:10px;padding:10px;color:#9fb0f0}
+    ul{margin:8px 0 0 18px;color:#9fb0f0}
+    @media (max-width:900px){.layout{grid-template-columns:1fr}.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">
+      <div class="brand">Ops Control Home</div>
+      <nav class="nav">
+        <a href="#activity">Activity Log + Agent Center</a>
+        <a href="#reroute">Re-Route</a>
+        <a href="#drone">Drone (Live + Video)</a>
+        <a href="#communication">Communication</a>
+        <a href="#agentic">Agentic Call</a>
+        <a href="/agent-page">Agent Page</a>
+        <a href="/remote">Remote Page</a>
+        <a href="/sensor-page">Sensor Page</a>
+        <a href="/video-page">Video Page</a>
+        <a href="/docs-page">Docs Page</a>
+      </nav>
+    </aside>
+    <main class="main">
+      <section class="hero">
+        <h1 style="margin:0 0 8px">Disaster Response Home</h1>
+        <div style="color:#9fb0f0">Unified dashboard for routing, remote events, tools, and agent workflows.</div>
+      </section>
+      <section class="grid">
+        <article class="card" id="activity">
+          <h2 style="margin:0 0 8px;font-size:18px">Activity Log + Agent Center</h2>
+          <ul>
+            <li>Flood signal received from MITHI_RIVER</li>
+            <li>Agent generated response plan</li>
+            <li>Team Alpha marked as en-route</li>
+          </ul>
+        </article>
+        <article class="card" id="reroute">
+          <h2 style="margin:0 0 8px;font-size:18px">Re-Route</h2>
+          <div class="feed">Adaptive reroute enabled for rescue vehicles near high water zones.</div>
+        </article>
+        <article class="card" id="drone">
+          <h2 style="margin:0 0 8px;font-size:18px">Drone (Live + Video)</h2>
+          <div class="feed">Live feed placeholder + recorded footage panel.</div>
+        </article>
+        <article class="card" id="communication">
+          <h2 style="margin:0 0 8px;font-size:18px">Communication</h2>
+          <div class="feed">Ops Radio, Mobile App, and Remote Webhook bridge are healthy.</div>
+        </article>
+        <article class="card full" id="agentic">
+          <h2 style="margin:0 0 8px;font-size:18px">Agentic Call</h2>
+          <div class="feed">Start AI planning from remote events, sensors, and inventory context.</div>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

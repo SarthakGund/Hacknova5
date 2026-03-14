@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AXON · Command Centre</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+              mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular'],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .mono { font-family: 'JetBrains Mono', monospace; }
+      #incidentMap { min-height: 430px; }
+      .leaflet-container { background: #f4f4f5; }
+      .dark .leaflet-container { background: #0a0a0a; }
+      .touch-btn { min-height: 44px; }
+      @media (max-width: 768px) {
+        #incidentMap { min-height: 280px; }
+      }
+    </style>
+</head>
+<body class="bg-zinc-50 text-zinc-900 dark:bg-black dark:text-white min-h-screen font-sans">
+    <header class="border-b border-zinc-200 dark:border-zinc-800 p-4 md:px-8 flex items-center justify-between sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur z-50">
+      <div class="flex items-center gap-3">
+        <span class="w-2 h-2 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
+        <h1 class="text-base md:text-lg font-semibold tracking-tight">AXON · Action Command Centre</h1>
+      </div>
+      <div class="flex items-center gap-3">
+        <nav class="text-sm hidden md:flex items-center gap-2 md:gap-4">
+          <a href="/" class="text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">Home</a>
+          <a href="/remote-control" class="text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">TV Remote</a>
+          <a href="/remote-console" class="text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">Remote Console</a>
+          <a href="/sensor-page" class="text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">Sensors</a>
+          <a href="/agent-page" class="text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">Agent</a>
+          <a href="/video-page" class="text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">Video AI</a>
+        </nav>
+        <button id="themeToggle" class="text-xs border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900 touch-btn">Toggle theme</button>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-8 space-y-4">
+      <section class="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 bg-white dark:bg-zinc-950">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold tracking-wide">Mobile Incident Reporting</h2>
+          <button id="refreshNowBtn" class="text-xs border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900 touch-btn">Refresh now</button>
+        </div>
+        <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-3">Use this on phone to quickly report SOS with your current location.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+          <input id="reporterName" type="text" placeholder="Your name (optional)" class="border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 bg-transparent text-sm" />
+          <input id="reportPeople" type="number" min="1" value="1" class="border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 bg-transparent text-sm" />
+          <button id="getLocationBtn" class="touch-btn border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900">Use current location</button>
+          <button id="sendSosBtn" class="touch-btn rounded px-3 py-2 text-sm bg-red-600 text-white hover:bg-red-700">Send SOS</button>
+        </div>
+        <textarea id="reportMessage" rows="2" class="mt-2 w-full border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 bg-transparent text-sm" placeholder="Describe your situation (water level, injuries, blocked road, etc.)"></textarea>
+        <div class="grid grid-cols-2 gap-2 mt-2">
+          <input id="reportLat" type="number" step="0.000001" placeholder="Latitude" class="border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 bg-transparent text-sm" />
+          <input id="reportLon" type="number" step="0.000001" placeholder="Longitude" class="border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 bg-transparent text-sm" />
+        </div>
+        <pre id="reportStatus" class="mono text-xs mt-2 p-2 border border-zinc-200 dark:border-zinc-800 rounded bg-zinc-100 dark:bg-zinc-950/70 min-h-14"></pre>
+      </section>
+
+      <section class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <article class="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 bg-white dark:bg-zinc-950">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400">Total Events</p>
+          <p id="kpiTotalEvents" class="text-2xl font-semibold mt-2">0</p>
+        </article>
+        <article class="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 bg-white dark:bg-zinc-950">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400">SOS Events</p>
+          <p id="kpiSosEvents" class="text-2xl font-semibold mt-2">0</p>
+        </article>
+        <article class="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 bg-white dark:bg-zinc-950">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400">Flood Events</p>
+          <p id="kpiFloodEvents" class="text-2xl font-semibold mt-2">0</p>
+        </article>
+        <article class="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 bg-white dark:bg-zinc-950">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400">Agent Runs</p>
+          <p id="kpiAgentRuns" class="text-2xl font-semibold mt-2">0</p>
+        </article>
+      </section>
+
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <article class="lg:col-span-2 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 bg-white dark:bg-zinc-950">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold tracking-wide">Live Incident Map</h2>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400 mono" id="lastUpdatedMap">Last update: --</p>
+          </div>
+          <div id="incidentMap" class="rounded-lg border border-zinc-200 dark:border-zinc-800"></div>
+        </article>
+
+        <article class="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 bg-white dark:bg-zinc-950">
+          <h2 class="text-sm font-semibold tracking-wide mb-3">Quick Actions</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button data-sim="sos" class="touch-btn border border-zinc-300 dark:border-zinc-700 rounded px-2 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-900">Simulate SOS</button>
+            <button data-sim="flood" class="touch-btn border border-zinc-300 dark:border-zinc-700 rounded px-2 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-900">Simulate Flood</button>
+            <button data-sim="weather" class="touch-btn border border-zinc-300 dark:border-zinc-700 rounded px-2 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-900">Simulate Weather</button>
+            <button data-sim="rescue" class="touch-btn border border-zinc-300 dark:border-zinc-700 rounded px-2 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-900">Simulate Rescue</button>
+            <button data-sim="supply" class="touch-btn border border-zinc-300 dark:border-zinc-700 rounded px-2 py-2 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-900 sm:col-span-2">Simulate Supply</button>
+          </div>
+          <pre id="actionResult" class="mono text-xs mt-3 p-2 border border-zinc-200 dark:border-zinc-800 rounded bg-zinc-100 dark:bg-zinc-950/70 min-h-24 max-h-48 overflow-auto"></pre>
+        </article>
+      </section>
+
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <article class="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 bg-white dark:bg-zinc-950">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold tracking-wide">Incident Feed</h2>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400 mono" id="lastUpdatedEvents">Last update: --</p>
+          </div>
+          <div id="incidentFeed" class="space-y-2 max-h-80 overflow-auto"></div>
+        </article>
+
+        <article class="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 bg-white dark:bg-zinc-950">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold tracking-wide">Agent Invocation Feed</h2>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400 mono" id="lastUpdatedAgent">Last update: --</p>
+          </div>
+          <pre id="agentFeed" class="mono text-xs p-2 border border-zinc-200 dark:border-zinc-800 rounded bg-zinc-100 dark:bg-zinc-950/70 min-h-80 max-h-80 overflow-auto"></pre>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const rootEl = document.documentElement;
+      const savedTheme = localStorage.getItem('axon-theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+        rootEl.classList.add('dark');
+      }
+
+      const themeToggle = document.getElementById('themeToggle');
+      themeToggle.addEventListener('click', () => {
+        rootEl.classList.toggle('dark');
+        localStorage.setItem('axon-theme', rootEl.classList.contains('dark') ? 'dark' : 'light');
+      });
+
+      const incidentFeed = document.getElementById('incidentFeed');
+      const agentFeed = document.getElementById('agentFeed');
+      const actionResult = document.getElementById('actionResult');
+      const reportStatus = document.getElementById('reportStatus');
+      const kpiTotalEvents = document.getElementById('kpiTotalEvents');
+      const kpiSosEvents = document.getElementById('kpiSosEvents');
+      const kpiFloodEvents = document.getElementById('kpiFloodEvents');
+      const kpiAgentRuns = document.getElementById('kpiAgentRuns');
+      const lastUpdatedMap = document.getElementById('lastUpdatedMap');
+      const lastUpdatedEvents = document.getElementById('lastUpdatedEvents');
+      const lastUpdatedAgent = document.getElementById('lastUpdatedAgent');
+      const refreshNowBtn = document.getElementById('refreshNowBtn');
+      const getLocationBtn = document.getElementById('getLocationBtn');
+      const sendSosBtn = document.getElementById('sendSosBtn');
+
+      const reportPeople = document.getElementById('reportPeople');
+      const reportMessage = document.getElementById('reportMessage');
+      const reportLat = document.getElementById('reportLat');
+      const reportLon = document.getElementById('reportLon');
+      const reporterName = document.getElementById('reporterName');
+
+      const map = L.map('incidentMap').setView([28.6139, 77.2090], 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      const markerLayer = L.layerGroup().addTo(map);
+
+      function ts() {
+        return new Date().toLocaleTimeString();
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;');
+      }
+
+      function eventToLatLon(event) {
+        const loc = event?.payload?.location;
+        if (!loc) return null;
+        if (typeof loc.lat !== 'number' || typeof loc.lon !== 'number') return null;
+        return { lat: loc.lat, lon: loc.lon, name: loc.name || 'Unknown location' };
+      }
+
+      function renderEventFeed(events) {
+        const ordered = events.slice().reverse();
+        incidentFeed.innerHTML = ordered.map((event) => {
+          const eventType = escapeHtml(event.event_type || 'unknown');
+          const source = escapeHtml(event.source || 'unknown_source');
+          const timestamp = escapeHtml(event.timestamp || '--');
+          const payload = escapeHtml(JSON.stringify(event.payload || {}, null, 2));
+
+          return `
+            <div class="border border-zinc-200 dark:border-zinc-800 rounded p-2 bg-zinc-100 dark:bg-zinc-950/40">
+              <div class="flex items-center justify-between gap-2 text-xs">
+                <span class="font-semibold">${eventType}</span>
+                <span class="text-zinc-500 dark:text-zinc-400 mono">${timestamp}</span>
+              </div>
+              <div class="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">source: ${source}</div>
+              <pre class="mono text-[11px] mt-2 overflow-auto">${payload}</pre>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function renderMap(events) {
+        markerLayer.clearLayers();
+        let bounds = [];
+
+        for (const event of events) {
+          const loc = eventToLatLon(event);
+          if (!loc) continue;
+
+          const marker = L.marker([loc.lat, loc.lon]).bindPopup(
+            `<strong>${escapeHtml(event.event_type || 'event')}</strong><br/>` +
+            `${escapeHtml(loc.name)}<br/>` +
+            `<span class="mono">${escapeHtml(event.timestamp || '--')}</span>`
+          );
+          markerLayer.addLayer(marker);
+          bounds.push([loc.lat, loc.lon]);
+        }
+
+        if (bounds.length > 0) {
+          map.fitBounds(bounds, { padding: [24, 24], maxZoom: 13 });
+        }
+      }
+
+      function computeKpis(events, invocations) {
+        kpiTotalEvents.textContent = String(events.length);
+        kpiSosEvents.textContent = String(events.filter((e) => e.event_type === 'sos').length);
+        kpiFloodEvents.textContent = String(events.filter((e) => e.event_type === 'flood_sensor').length);
+        kpiAgentRuns.textContent = String(invocations.length);
+      }
+
+      async function refreshData() {
+        try {
+          const [eventsRes, invRes] = await Promise.all([
+            fetch('/remote/webhook/events'),
+            fetch('/remote/webhook/agent-invocations'),
+          ]);
+
+          const events = await eventsRes.json();
+          const invocations = await invRes.json();
+
+          renderEventFeed(events);
+          renderMap(events);
+          computeKpis(events, invocations);
+          agentFeed.textContent = JSON.stringify(invocations.slice().reverse(), null, 2);
+
+          lastUpdatedMap.textContent = `Last update: ${ts()}`;
+          lastUpdatedEvents.textContent = `Last update: ${ts()}`;
+          lastUpdatedAgent.textContent = `Last update: ${ts()}`;
+        } catch (err) {
+          agentFeed.textContent = `Live update failed: ${err}`;
+        }
+      }
+
+      function setReportStatus(message) {
+        reportStatus.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      }
+
+      getLocationBtn.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          setReportStatus('Geolocation is not supported on this device.');
+          return;
+        }
+
+        setReportStatus('Fetching current location...');
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            reportLat.value = String(pos.coords.latitude.toFixed(6));
+            reportLon.value = String(pos.coords.longitude.toFixed(6));
+            setReportStatus('Location loaded. You can now send SOS.');
+          },
+          (err) => {
+            setReportStatus(`Location error: ${err.message}`);
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+        );
+      });
+
+      sendSosBtn.addEventListener('click', async () => {
+        const lat = Number(reportLat.value);
+        const lon = Number(reportLon.value);
+        const people = Number(reportPeople.value || 1);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+          setReportStatus('Please provide valid latitude and longitude.');
+          return;
+        }
+
+        const note = reportMessage.value.trim() || 'Need urgent assistance';
+        const sender = reporterName.value.trim() || 'mobile_user';
+
+        const payload = {
+          event_type: 'sos',
+          source: `mobile_app:${sender}`,
+          payload: {
+            message: note,
+            people: Math.max(1, people),
+            location: {
+              lat,
+              lon,
+              name: sender,
+            },
+          },
+        };
+
+        try {
+          sendSosBtn.disabled = true;
+          setReportStatus('Sending SOS...');
+
+          const res = await fetch('/remote/webhook/events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data?.detail || 'SOS submit failed');
+          }
+
+          setReportStatus(`SOS submitted. Event ID: ${data.event_id}`);
+          await refreshData();
+        } catch (err) {
+          setReportStatus(`SOS error: ${err}`);
+        } finally {
+          sendSosBtn.disabled = false;
+        }
+      });
+
+      refreshNowBtn.addEventListener('click', refreshData);
+
+      document.querySelectorAll('[data-sim]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const type = btn.getAttribute('data-sim');
+          try {
+            const res = await fetch(`/remote/webhook/simulate/${type}`, { method: 'POST' });
+            const data = await res.json();
+            actionResult.textContent = JSON.stringify(data, null, 2);
+            await refreshData();
+          } catch (err) {
+            actionResult.textContent = `Action failed: ${err}`;
+          }
+        });
+      });
+
+      refreshData();
+      setInterval(refreshData, 2000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+{
+  "rescue_resources": [
+    {
+      "id": "rescue_team_1",
+      "type": "boat_team",
+      "status": "busy",
+      "location": {
+        "lat": 28.61,
+        "lon": 77.2
+      },
+      "capacity": 8
+    },
+    {
+      "id": "rescue_team_2",
+      "type": "helicopter",
+      "status": "busy",
+      "location": {
+        "lat": 28.64,
+        "lon": 77.19
+      },
+      "capacity": 5
+    }
+  ],
+  "medical_resources": [
+    {
+      "id": "med_unit_1",
+      "type": "mobile_clinic",
+      "status": "available",
+      "location": {
+        "lat": 28.6,
+        "lon": 77.18
+      }
+    }
+  ],
+  "supplies": [
+    {
+      "resource": "food_packets",
+      "quantity": 500
+    },
+    {
+      "resource": "water_liters",
+      "quantity": 2000
+    },
+    {
+      "resource": "blankets",
+      "quantity": 100
+    }
+  ],
+  "shelters": [
+    {
+      "id": "shelter_1",
+      "name": "Community Hall A",
+      "capacity": 300,
+      "occupied": 120,
+      "location": {
+        "lat": 28.62,
+        "lon": 77.21
+      }
+    }
+  ],
+  "communication_nodes": [
+    {
+      "id": "mesh_node_1",
+      "type": "bluetooth_node",
+      "status": "active",
+      "location": {
+        "lat": 28.61,
+        "lon": 77.22
+      }
+    }
+  ]
+}

@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jeevan · Flood Disaster Simulator Remote</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Material+Symbols+Outlined" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f3f4f6;
+      --surface: #ffffff;
+      --surface-2: #eef2ff;
+      --text: #111827;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --danger: #dc2626;
+      --ok: #16a34a;
+      --line: #d1d5db;
+      --shadow: 0 10px 30px rgba(17, 24, 39, 0.15);
+    }
+    body.dark {
+      --bg: #171717;
+      --surface: #262626;
+      --surface-2: #3a3a3a;
+      --text: #f5f5f5;
+      --muted: #b3b3b3;
+      --primary: #5c5c5c;
+      --danger: #ef4444;
+      --ok: #22c55e;
+      --line: #4a4a4a;
+      --shadow: 0 12px 36px rgba(0,0,0,.45);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(900px 500px at 50% -20%, #93c5fd33, transparent), var(--bg);
+      color: var(--text);
+      font-family: Roboto, system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 430px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .top-links { display: flex; gap: 8px; }
+    .top-links a, .theme-btn {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 12px;
+      text-decoration: none;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .remote {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .title {
+      text-align: center;
+      font-weight: 700;
+      letter-spacing: .02em;
+      margin: 0 0 8px;
+    }
+
+    .status {
+      min-height: 70px;
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      border-radius: 14px;
+      padding: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      white-space: pre-wrap;
+      overflow: auto;
+      margin-bottom: 12px;
+    }
+
+    .power-row {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+
+    .btn-round {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      border: 0;
+      color: #fff;
+      background: var(--danger);
+      display: grid;
+      place-items: center;
+      font-size: 30px;
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(0,0,0,.28);
+    }
+
+    .grid-remote {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .key {
+      min-height: 56px;
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      color: var(--text);
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .key.primary {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      font-weight: 700;
+    }
+
+    .key.alert {
+      background: var(--danger);
+      color: #fff;
+      border: none;
+      font-weight: 700;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .chip {
+      min-height: 48px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface-2);
+      color: var(--text);
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .chip.alert { background: #fee2e2; color: #991b1b; }
+    body.dark .chip.alert { background: #450a0a; color: #fecaca; }
+
+    .chip.ok { background: #dcfce7; color: #166534; }
+    body.dark .chip.ok { background: #052e16; color: #86efac; }
+
+    .footer-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .footer-controls select, .footer-controls input, .footer-controls button {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 44px;
+    }
+
+    .footer-controls button {
+      background: var(--ok);
+      border: 0;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    @media (max-width: 430px) {
+      .grid-remote { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar">
+      <div class="top-links">
+        <a href="/remote">Command Centre</a>
+        <a href="/remote-console">Legacy Console</a>
+      </div>
+      <button class="theme-btn" id="themeToggle">Theme</button>
+    </div>
+
+    <section class="remote">
+      <h1 class="title">Jeevan · Flood Disaster Simulator Remote</h1>
+      <div style="text-align:center; font-size:12px; color:var(--muted); margin-bottom:10px;">Rapid field controls for flood response simulation</div>
+      <div id="status" class="status">Ready.</div>
+
+      <div class="grid-remote">
+        <button class="key" data-sim="weather">WEATHER</button>
+        <button class="key" data-sim="flood">FLOOD</button>
+        <button class="key" data-sim="rescue">RESCUE</button>
+        <button class="key" data-sim="supply">SUPPLY</button>
+
+        <button class="key primary" data-sim="sos">SOS</button>
+        <button class="key alert" id="panicBtn">PANIC</button>
+        <button class="key" id="sendMyLocationBtn">MY SOS</button>
+        <button class="key" id="refreshBtn">REFRESH</button>
+      </div>
+
+      <div class="footer-controls">
+        <select id="sensor"></select>
+        <input id="spikeValue" type="number" step="0.1" value="3.8" placeholder="Spike value" />
+        <input id="spikeDuration" type="number" min="1" value="10" placeholder="Duration sec" />
+        <button id="spikeBtn">Spike Sensor</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const sensorEl = document.getElementById('sensor');
+
+    function setStatus(msg, payload) {
+      const ts = new Date().toLocaleTimeString();
+      statusEl.textContent = `[${ts}] ${msg}${payload ? '\n' + JSON.stringify(payload, null, 2) : ''}`;
+    }
+
+    async function loadSensors() {
+      try {
+        const res = await fetch('/sensors/configs');
+        const data = await res.json();
+        sensorEl.innerHTML = data.map(s => `<option value="${s.sensor_id}">${s.sensor_id}</option>`).join('');
+      } catch (e) {
+        setStatus(`Failed loading sensors: ${e}`);
+      }
+    }
+
+    async function triggerSim(type) {
+      try {
+        const res = await fetch(`/remote/webhook/simulate/${type}`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.detail || 'Request failed');
+        setStatus(`${type.toUpperCase()} triggered`, data);
+      } catch (e) {
+        setStatus(`Action failed: ${e}`);
+      }
+    }
+
+    async function triggerSpike() {
+      const payload = {
+        sensor_id: sensorEl.value,
+        spike_value: Number(document.getElementById('spikeValue').value),
+        duration_seconds: Number(document.getElementById('spikeDuration').value),
+      };
+      try {
+        const res = await fetch('/remote/webhook/spike', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.detail || 'Spike failed');
+        setStatus('Spike injected', data);
+      } catch (e) {
+        setStatus(`Spike error: ${e}`);
+      }
+    }
+
+    async function sendMySos() {
+      if (!navigator.geolocation) {
+        setStatus('Geolocation unsupported on this device');
+        return;
+      }
+      setStatus('Getting location...');
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const payload = {
+          event_type: 'sos',
+          source: 'mobile_remote',
+          payload: {
+            message: 'User triggered SOS from TV remote UI',
+            people: 1,
+            location: {
+              lat: Number(pos.coords.latitude.toFixed(6)),
+              lon: Number(pos.coords.longitude.toFixed(6)),
+              name: 'mobile_user',
+            },
+          },
+        };
+
+        try {
+          const res = await fetch('/remote/webhook/events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.detail || 'SOS failed');
+          setStatus('SOS sent with current location', data);
+        } catch (e) {
+          setStatus(`SOS error: ${e}`);
+        }
+      }, (err) => {
+        setStatus(`Location error: ${err.message}`);
+      }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 });
+    }
+
+    document.querySelectorAll('[data-sim]').forEach(btn => {
+      btn.addEventListener('click', () => triggerSim(btn.getAttribute('data-sim')));
+    });
+
+    document.getElementById('panicBtn').addEventListener('click', () => triggerSim('sos'));
+    document.getElementById('spikeBtn').addEventListener('click', triggerSpike);
+    document.getElementById('sendMyLocationBtn').addEventListener('click', sendMySos);
+    document.getElementById('refreshBtn').addEventListener('click', () => setStatus('Remote ready.'));
+
+    const savedTheme = localStorage.getItem('axon-theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      document.body.classList.add('dark');
+    }
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      localStorage.setItem('axon-theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+    });
+
+    loadSensors();
+  </script>
+</body>
+</html>

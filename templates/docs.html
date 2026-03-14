@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Docs: Agents + Tools</title>
+  <style>
+    body{font-family:Inter,system-ui,Arial,sans-serif;margin:0;background:#0b1020;color:#e7ecff}
+    .wrap{padding:22px;max-width:1100px;margin:0 auto}
+    .links{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .links a{color:#cdd8ff;text-decoration:none;border:1px solid #304085;border-radius:9px;padding:8px 12px;background:#121d3e}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .card{border:1px solid #2a3965;border-radius:12px;background:#121a33;padding:14px}
+    .mono{white-space:pre-wrap;background:#0a1125;border:1px solid #2a3965;border-radius:8px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    .pill{display:inline-block;padding:3px 8px;border:1px solid #3b4f95;border-radius:999px;background:#0f1730;color:#cdd8ff;font-size:11px;margin:0 6px 6px 0}
+    .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    button{width:100%;padding:10px;border:none;border-radius:8px;background:linear-gradient(135deg,#3a63ff,#5d7eff);color:#fff;font-weight:600;cursor:pointer}
+    .full{grid-column:1/-1}
+    @media(max-width:900px){.grid,.actions{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1 style="margin:0 0 8px">Project Docs: Agents + Tools</h1>
+    <div style="color:#9fb0f0;margin-bottom:10px">Reference page for available agents, tool groups, API routes, and dynamic AI demo.</div>
+
+    <div class="links">
+      <a href="/">Home</a><a href="/agent-page">Agent</a><a href="/remote">Remote</a><a href="/sensor-page">Sensor</a><a href="/video-page">Video</a>
+    </div>
+
+    <section class="grid">
+      <article class="card">
+        <h3 style="margin:0 0 8px">Agents</h3>
+        <span class="pill">Disaster Agent</span>
+        <span class="pill">Rescue Trigger Agent</span>
+        <span class="pill">Supply Trigger Agent</span>
+        <span class="pill">Weather Trigger Agent</span>
+        <ul style="color:#cdd8ff;line-height:1.5">
+          <li>Disaster agent orchestrates tool calls and planning.</li>
+          <li>Trigger agents provide specialized domain handling.</li>
+          <li>Dry run and live mode supported.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h3 style="margin:0 0 8px">Tool Families</h3>
+        <span class="pill">Inventory</span>
+        <span class="pill">Communication</span>
+        <span class="pill">Nearest Resource</span>
+        <span class="pill">Rescue Dispatch</span>
+        <ul style="color:#cdd8ff;line-height:1.5">
+          <li>Supply operations: list/check/allocate/release/update.</li>
+          <li>Rescue operations: team availability, dispatch, release.</li>
+          <li>Communication operations: broadcast/notify/request.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h3 style="margin:0 0 8px">Important Routes</h3>
+        <div class="mono">POST /agent/invoke
+POST /agent/invoke/stream
+DELETE /agent/memory/{session_id}
+
+GET /sensors/configs
+GET /sensors/stream/{sensor_id}
+POST /sensors/spike
+
+POST /remote/webhook/events
+GET /remote/webhook/events
+POST /remote/webhook/simulate/{type}
+POST /remote/webhook/spike</div>
+      </article>
+
+      <article class="card">
+        <h3 style="margin:0 0 8px">Dynamic AI Demo</h3>
+        <div class="actions">
+          <button id="fetchBtn">Fetch Remote Events</button>
+          <button id="askBtn">Ask AI on Latest Event</button>
+        </div>
+        <div id="out" class="mono" style="margin-top:10px;max-height:280px;overflow:auto"></div>
+      </article>
+
+      <article class="card full">
+        <h3 style="margin:0 0 8px">Quick Use</h3>
+        <ul style="color:#cdd8ff;line-height:1.6">
+          <li>Use Agent page for full tool visualization and streaming output.</li>
+          <li>Use Remote page for event simulation and remote-driven AI analysis.</li>
+          <li>Use Sensor page for direct readings and spike tests.</li>
+        </ul>
+      </article>
+    </section>
+  </div>
+
+  <script>
+    const out = document.getElementById('out');
+    let eventsCache = [];
+    document.getElementById('fetchBtn').addEventListener('click', async () => {
+      const res = await fetch('/remote/webhook/events');
+      const data = await res.json();
+      eventsCache = Array.isArray(data) ? data : [];
+      out.textContent = JSON.stringify(eventsCache.slice(-5), null, 2);
+    });
+
+    document.getElementById('askBtn').addEventListener('click', async () => {
+      if (!eventsCache.length) {
+        const res = await fetch('/remote/webhook/events');
+        eventsCache = await res.json();
+      }
+      const latest = (eventsCache || []).slice(-1)[0] || { event_type: 'sos', payload: { message: 'No events yet. Give preparedness plan.' } };
+      const message = `Analyze latest remote event and propose actions: ${JSON.stringify(latest)}`;
+      const aiRes = await fetch('/agent/invoke', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ message, dry_run: true, max_iterations: 20, session_id: 'docs-demo', remember: true })
+      });
+      const ai = await aiRes.json();
+      out.textContent = JSON.stringify({ latest_event: latest, output: ai.output, tool_calls: ai.tool_calls, session_id: ai.session_id, memory_turns: ai.memory_turns }, null, 2);
+    });
+  </script>
+</body>
+</html>

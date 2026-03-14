@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video AI Pipeline Console</title>
+    <style>
+        :root {
+            --bg: #f7f9ff;
+            --text: #0f172a;
+            --card-bg: #ffffff;
+            --card-border: #dbe2ff;
+            --sub: #4b5eaa;
+            --input-border: #c6d3ff;
+            --link: #2646b6;
+            --log-bg: #f0f4ff;
+        }
+        body.dark {
+            --bg: #0b1020;
+            --text: #e7ecff;
+            --card-bg: #121a33;
+            --card-border: #2b3a6b;
+            --sub: #9fb0f0;
+            --input-border: #3c4f91;
+            --link: #cdd8ff;
+            --log-bg: #0a1125;
+        }
+        body { font-family: Inter, system-ui, Arial, sans-serif; margin: 24px; background: var(--bg); color: var(--text); }
+        h1, h2, h3 { margin: 0 0 12px 0; }
+        .links { margin-bottom: 14px; display: flex; gap: 10px; }
+        .links a { text-decoration: none; color: var(--link); border: 1px solid var(--input-border); border-radius: 8px; padding: 8px 12px; background: var(--card-bg); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .card { border: 1px solid var(--card-border); border-radius: 12px; padding: 16px; background: var(--card-bg); }
+        .sub { color: var(--sub); font-size: 12px; margin-bottom: 10px; }
+        input, select, button { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--input-border); margin-bottom: 10px; }
+        input, select { background: transparent; color: var(--text); }
+        button { background: #2457ff; color: #fff; border: none; cursor: pointer; font-weight: 600; }
+        button:disabled { opacity: 0.6; cursor: wait; }
+        video { width: 100%; border-radius: 10px; background: #000; max-height: 420px; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .log { max-height: 360px; overflow: auto; white-space: pre-wrap; background: var(--log-bg); border-radius: 8px; padding: 10px; }
+        .row { display: flex; gap: 8px; align-items: center; }
+        .row a { color: var(--link); text-decoration: none; font-size: 13px; }
+        .top { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
+        .theme-toggle { width:auto; margin-left:auto; }
+    </style>
+</head>
+<body>
+    <div class="top">
+        <h1 style="margin:0;">Video AI Pipeline Console</h1>
+        <button id="themeToggle" class="theme-toggle">Toggle theme</button>
+    </div>
+    <div class="links">
+        <a href="/agent-page">AI Agent Page</a>
+        <a href="/remote">Remote Webhook Console</a>
+        <a href="/sensor-page">Sensor Test Page</a>
+    </div>
+
+    <div class="grid">
+        <section class="card">
+            <h2>Upload Video</h2>
+            <p class="sub">Uploads a video, runs YOLO person detection + Gemini captioning, and returns rendered overlays.</p>
+
+            <label for="videoFile"><strong>Video file</strong></label>
+            <input id="videoFile" type="file" accept="video/*" />
+
+            <label for="processingPreset"><strong>Processing preset</strong></label>
+            <select id="processingPreset">
+                <option value="fast" selected>fast (few frames, quickest)</option>
+                <option value="balanced">balanced</option>
+                <option value="quality">quality (more frames, slower)</option>
+            </select>
+
+            <label for="geminiMode"><strong>Gemini mode</strong></label>
+            <select id="geminiMode">
+                <option value="keyframe" selected>keyframe caption (fast)</option>
+                <option value="full_video">full video caption (slowest)</option>
+            </select>
+
+            <label for="yoloModel"><strong>YOLO model (optional)</strong></label>
+            <input id="yoloModel" type="text" placeholder="e.g. yolov8n.pt" />
+
+            <button id="runBtn">Upload + Process</button>
+            <div id="status" class="mono log">Idle.</div>
+        </section>
+
+        <section class="card">
+            <h2>Rendered Video</h2>
+            <video id="outputVideo" controls></video>
+            <div class="row" style="margin-top:10px;">
+                <a id="downloadVideo" href="#" target="_blank" rel="noopener">Download processed video</a>
+                <a id="downloadEvents" href="#" target="_blank" rel="noopener">Download events JSON</a>
+            </div>
+        </section>
+    </div>
+
+    <section class="card" style="margin-top:16px;">
+        <h3>Events</h3>
+        <div id="eventsLog" class="mono log"></div>
+    </section>
+
+    <script>
+        const savedTheme = localStorage.getItem('axon-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            document.body.classList.add('dark');
+        }
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            document.body.classList.toggle('dark');
+            localStorage.setItem('axon-theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+        });
+
+        const runBtn = document.getElementById('runBtn');
+        const statusEl = document.getElementById('status');
+        const eventsEl = document.getElementById('eventsLog');
+        const videoEl = document.getElementById('outputVideo');
+        const downloadVideoEl = document.getElementById('downloadVideo');
+        const downloadEventsEl = document.getElementById('downloadEvents');
+
+        function setStatus(msg) {
+            statusEl.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        }
+
+        runBtn.addEventListener('click', async () => {
+            const fileInput = document.getElementById('videoFile');
+            const processingPreset = document.getElementById('processingPreset').value;
+            const geminiMode = document.getElementById('geminiMode').value;
+            const yoloModel = document.getElementById('yoloModel').value.trim();
+            const file = fileInput.files?.[0];
+
+            if (!file) {
+                setStatus('Please select a video first.');
+                return;
+            }
+
+            runBtn.disabled = true;
+            eventsEl.textContent = '';
+            setStatus('Uploading and processing... this can take a while for long videos.');
+
+            try {
+                const formData = new FormData();
+                formData.append('video', file);
+                formData.append('processing_preset', processingPreset);
+                formData.append('gemini_mode', geminiMode);
+                if (yoloModel) {
+                    formData.append('yolo_model_name', yoloModel);
+                }
+
+                const res = await fetch('/video/analyze', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data?.detail || 'Processing failed');
+                }
+
+                setStatus(
+                    `Done. Input frames: ${data.frames_processed}, output frames: ${data.frames_output}, ` +
+                    `stride: ${data.frame_stride}, preset: ${data.processing_preset}, gemini: ${data.gemini_mode}`
+                );
+
+                if (data.gemini_debug) {
+                    statusEl.textContent += `\nGemini debug: ${JSON.stringify(data.gemini_debug, null, 2)}`;
+                }
+
+                videoEl.src = data.output_video_download;
+                videoEl.load();
+
+                downloadVideoEl.href = data.output_video_download;
+                downloadEventsEl.href = data.events_download;
+
+                const eventsRes = await fetch(data.events_download);
+                const eventsJson = await eventsRes.json();
+                eventsEl.textContent = JSON.stringify(eventsJson, null, 2);
+            } catch (err) {
+                setStatus(`Error: ${err}`);
+            } finally {
+                runBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Console</title>
+  <style>
+    body{font-family:Inter,system-ui,Arial,sans-serif;margin:0;background:#0b1020;color:#e7ecff}
+    .wrap{padding:20px;max-width:1200px;margin:0 auto}
+    .links{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .links a{color:#cdd8ff;text-decoration:none;border:1px solid #304085;border-radius:9px;padding:8px 12px;background:#121d3e}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .card{border:1px solid #2a3965;border-radius:12px;background:#121a33;padding:14px}
+    textarea,input,button{width:100%;padding:10px;border-radius:8px;border:1px solid #3c4f91;background:#0f1730;color:#fff}
+    textarea{min-height:120px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    button{border:none;background:linear-gradient(135deg,#3a63ff,#5d7eff);cursor:pointer;font-weight:600}
+    .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+    .log{white-space:pre-wrap;max-height:340px;overflow:auto;background:#0a1125;border:1px solid #2a3965;border-radius:8px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    .tools .item{border:1px solid #2a3965;border-radius:8px;padding:10px;background:#0f1730;margin-bottom:8px}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+    .stat{border:1px solid #2a3965;border-radius:8px;padding:10px;background:#0f1730}
+    .k{font-size:11px;color:#9fb0f0}.v{font-size:20px;font-weight:700}
+    .feed{max-height:220px}
+    @media(max-width:900px){.row{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1 style="margin:0 0 8px">AI Agent Console</h1>
+    <div class="links">
+      <a href="/">Home</a><a href="/remote">Remote</a><a href="/sensor-page">Sensor</a><a href="/video-page">Video</a><a href="/docs-page">Docs</a>
+    </div>
+    <div class="row">
+      <section class="card">
+        <h3 style="margin:0 0 8px">Invoke</h3>
+        <label>Message</label>
+        <textarea id="message">A flood alert came from Street 12. Check rescue and supplies, then propose immediate actions.</textarea>
+        <label>Session ID</label>
+        <input id="session" value="default" />
+        <div style="display:flex;gap:12px;margin:10px 0;color:#9fb0f0;font-size:13px">
+          <label><input type="checkbox" id="dry" checked style="width:auto" /> dry_run</label>
+          <label><input type="checkbox" id="remember" checked style="width:auto" /> remember</label>
+          <label><input type="checkbox" id="clearBefore" style="width:auto" /> clear_before</label>
+        </div>
+        <label>Max iterations</label>
+        <input id="iter" type="number" min="1" max="100" value="20" />
+        <div class="btns">
+          <button id="runBtn">Run Normal</button>
+          <button id="streamBtn">Run Streaming</button>
+          <button id="stopBtn" style="background:#ef4444">Stop Stream</button>
+          <button id="clearBtn" style="background:#64748b">Clear Memory</button>
+        </div>
+      </section>
+      <section class="card">
+        <h3 style="margin:0 0 8px">Output</h3>
+        <div id="meta" style="color:#9fb0f0;font-size:12px;margin-bottom:8px"></div>
+        <div id="output" class="log"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h3 style="margin:0 0 8px">Tool Summary</h3>
+      <div class="stats">
+        <div class="stat"><div class="k">Total</div><div id="sTotal" class="v">0</div></div>
+        <div class="stat"><div class="k">Completed</div><div id="sDone" class="v">0</div></div>
+        <div class="stat"><div class="k">Pending</div><div id="sPending" class="v">0</div></div>
+        <div class="stat"><div class="k">Errors</div><div id="sErr" class="v">0</div></div>
+      </div>
+    </section>
+
+    <section class="card tools">
+      <h3 style="margin:0 0 8px">Tool Calls</h3>
+      <div id="tools"></div>
+    </section>
+
+    <section class="card">
+      <h3 style="margin:0 0 8px">Streaming Feed</h3>
+      <div id="feed" class="log feed"></div>
+    </section>
+  </div>
+
+  <script>
+    const output = document.getElementById('output');
+    const toolsEl = document.getElementById('tools');
+    const feed = document.getElementById('feed');
+    const meta = document.getElementById('meta');
+    let controller = null;
+    let toolCalls = [];
+
+    const safeJson = (v) => {
+      if (v === null || v === undefined) return null;
+      if (typeof v === 'object') return v;
+      if (typeof v !== 'string') return null;
+      const t = v.trim();
+      if (!t.startsWith('{') && !t.startsWith('[')) return null;
+      try { return JSON.parse(t); } catch { return null; }
+    };
+    const pretty = (v) => {
+      const p = safeJson(v);
+      if (p !== null) return JSON.stringify(p, null, 2);
+      if (typeof v === 'object') return JSON.stringify(v, null, 2);
+      return String(v ?? '');
+    };
+
+    function getPayload() {
+      return {
+        message: document.getElementById('message').value,
+        dry_run: document.getElementById('dry').checked,
+        remember: document.getElementById('remember').checked,
+        clear_memory_before_run: document.getElementById('clearBefore').checked,
+        session_id: document.getElementById('session').value || 'default',
+        max_iterations: Number(document.getElementById('iter').value || 20),
+      };
+    }
+
+    function updateMeta(m) {
+      const parts = [];
+      if (m.session_id) parts.push(`session=${m.session_id}`);
+      if (typeof m.memory_turns === 'number') parts.push(`memory_turns=${m.memory_turns}`);
+      if (typeof m.dry_run === 'boolean') parts.push(`mode=${m.dry_run ? 'DRY_RUN' : 'LIVE'}`);
+      meta.textContent = parts.join(' · ');
+    }
+
+    function renderStats() {
+      const total = toolCalls.length;
+      let done = 0, pending = 0, err = 0;
+      for (const c of toolCalls) {
+        const s = String(c.state || '').toLowerCase();
+        if (s === 'completed') done++; else if (s === 'pending') pending++; else if (s) err++;
+        const r = String(c.result || '').toLowerCase();
+        if (r.includes('error') || r.includes('failed')) err++;
+      }
+      document.getElementById('sTotal').textContent = total;
+      document.getElementById('sDone').textContent = done;
+      document.getElementById('sPending').textContent = pending;
+      document.getElementById('sErr').textContent = err;
+    }
+
+    function renderTools() {
+      if (!toolCalls.length) {
+        toolsEl.innerHTML = '<div style="color:#9fb0f0">No tool calls.</div>';
+        renderStats();
+        return;
+      }
+      toolsEl.innerHTML = toolCalls.map((c, i) => `
+        <div class="item">
+          <div><strong>${c.name || 'unknown_tool'}</strong> · state=${c.state || 'unknown'} · #${i+1}</div>
+          <details open><summary>args</summary><pre class="log">${pretty(c.args || {})}</pre></details>
+          <details><summary>result</summary><pre class="log">${pretty(c.result || '')}</pre></details>
+        </div>
+      `).join('');
+      renderStats();
+    }
+
+    function pushFeed(line) { feed.textContent = `${line}\n` + feed.textContent; }
+
+    async function runNormal() {
+      output.textContent = 'Invoking...';
+      feed.textContent = '';
+      toolCalls = [];
+      renderTools();
+      const res = await fetch('/agent/invoke', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(getPayload())
+      });
+      const data = await res.json();
+      output.textContent = data.output || JSON.stringify(data, null, 2);
+      updateMeta(data);
+      toolCalls = data.tool_calls || [];
+      renderTools();
+      if (data.error) pushFeed(`[error] ${data.error}`);
+    }
+
+    async function runStreaming() {
+      if (controller) controller.abort();
+      controller = new AbortController();
+      output.textContent = '';
+      feed.textContent = '';
+      toolCalls = [];
+      renderTools();
+
+      const res = await fetch('/agent/invoke/stream', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(getPayload()), signal: controller.signal
+      });
+      if (!res.ok || !res.body) {
+        output.textContent = await res.text();
+        controller = null;
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream: true});
+        const frames = buffer.split('\n\n');
+        buffer = frames.pop() || '';
+
+        for (const frame of frames) {
+          if (!frame.trim()) continue;
+          let ev = 'message'; let dt = '';
+          for (const line of frame.split('\n')) {
+            if (line.startsWith('event:')) ev = line.slice(6).trim();
+            else if (line.startsWith('data:')) dt += line.slice(5).trim();
+          }
+          let payload = {};
+          try { payload = JSON.parse(dt || '{}'); } catch { payload = {raw: dt}; }
+
+          if (ev === 'status') pushFeed(`[status] ${payload.phase || 'running'}${payload.tick ? ' #' + payload.tick : ''}`);
+          else if (ev === 'meta') { updateMeta(payload); pushFeed('[meta] received'); }
+          else if (ev === 'tool_call' && payload.tool_call) { toolCalls.push(payload.tool_call); renderTools(); pushFeed(`[tool] ${payload.tool_call.name || 'unknown'}`); }
+          else if (ev === 'output_chunk') output.textContent += payload.delta || '';
+          else if (ev === 'final') { if (payload.output) output.textContent = payload.output; if (Array.isArray(payload.tool_calls)) { toolCalls = payload.tool_calls; renderTools(); } updateMeta(payload); }
+          else if (ev === 'error') pushFeed(`[error] ${payload.message || 'unknown'}`);
+          else if (ev === 'done') pushFeed(`[done] ok=${payload.ok}`);
+        }
+      }
+      controller = null;
+    }
+
+    document.getElementById('runBtn').addEventListener('click', () => runNormal().catch(e => output.textContent = String(e)));
+    document.getElementById('streamBtn').addEventListener('click', () => runStreaming().catch(e => output.textContent = String(e)));
+    document.getElementById('stopBtn').addEventListener('click', () => { if (controller) controller.abort(); });
+    document.getElementById('clearBtn').addEventListener('click', async () => {
+      const sid = document.getElementById('session').value || 'default';
+      const res = await fetch(`/agent/memory/${encodeURIComponent(sid)}`, {method:'DELETE'});
+      const data = await res.json();
+      output.textContent = JSON.stringify(data, null, 2);
+      toolCalls = []; renderTools(); updateMeta({session_id: sid, memory_turns: 0});
+    });
+  </script>
+</body>
+</html>
