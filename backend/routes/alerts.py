@@ -41,6 +41,38 @@ def get_nearby_alerts():
         'radius_meters': radius
     })
 
+@alerts_bp.route('/alerts', methods=['GET'])
+def get_all_alerts():
+    """Get all active (non-expired) alerts from the database"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    severity_filter = request.args.get('severity')
+
+    query = '''
+        SELECT a.*, i.title as incident_title, i.type as incident_type, i.status as incident_status
+        FROM alerts a
+        LEFT JOIN incidents i ON a.incident_id = i.id
+        WHERE (a.expires_at IS NULL OR a.expires_at > datetime('now'))
+    '''
+    params = []
+
+    if severity_filter:
+        query += ' AND a.severity = ?'
+        params.append(severity_filter)
+
+    query += ' ORDER BY a.created_at DESC'
+
+    cursor.execute(query, params)
+    alerts = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return jsonify({
+        'success': True,
+        'alerts': alerts,
+        'count': len(alerts)
+    })
+
 @alerts_bp.route('/alerts', methods=['POST'])
 def create_alert():
     """Create a new alert"""

@@ -1,6 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { alertsAPI, incidentsAPI } from "@/lib/api"
+import { calculateDistance } from "@/lib/utils"
+import { buildAvoidAreas, fetchTomTomRoute, type LatLng } from "@/lib/tomtom"
 
 interface UserMapProps {
     incidents?: Array<{
@@ -11,12 +14,14 @@ interface UserMapProps {
         lng: number
         severity: "high" | "medium" | "low"
     }>
+    selectedTarget?: { lat: number; lng: number; type?: string; location?: string } | null
 }
 
-export default function UserMap({ incidents = [], resources = [], zones = [] }: any) {
+export default function UserMap({ incidents = [], resources = [], zones = [], selectedTarget = null }: UserMapProps & { resources?: any[]; zones?: any[] }) {
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<any>(null)
     const markersLayer = useRef<any>(null)
+    const routeLayer = useRef<any>(null)
     const [isClient, setIsClient] = useState(false)
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
 
@@ -206,6 +211,71 @@ export default function UserMap({ incidents = [], resources = [], zones = [] }: 
 
         updateMapItems()
     }, [incidents, resources, zones, userLocation])
+
+    useEffect(() => {
+        if (!map.current || !userLocation) return
+
+        let active = true
+
+        const clearRoute = () => {
+            if (routeLayer.current) {
+                routeLayer.current.remove()
+                routeLayer.current = null
+            }
+        }
+
+        const buildRoute = async () => {
+            if (!selectedTarget) {
+                clearRoute()
+                return
+            }
+
+            const start: LatLng = { lat: userLocation.lat, lng: userLocation.lng }
+            const end: LatLng = { lat: selectedTarget.lat, lng: selectedTarget.lng }
+
+            try {
+                // Fetch all active incidents as danger zones to avoid
+                const incidentsRes = await incidentsAPI.getAll()
+                const dangerZones = (incidentsRes.success ? incidentsRes.incidents : [])
+                    .filter((inc: any) =>
+                        !["resolved", "closed"].includes(inc.status?.toLowerCase?.() ?? "")
+                        && inc.lat && inc.lng
+                        && !(inc.lat === selectedTarget.lat && inc.lng === selectedTarget.lng)
+                    )
+                    .map((inc: any) => ({
+                        lat: inc.lat,
+                        lng: inc.lng,
+                        radius:
+                            inc.severity === "critical" ? 700 :
+                            inc.severity === "high"     ? 500 :
+                            inc.severity === "medium"   ? 350 : 250,
+                    }))
+
+                const avoidAreas = buildAvoidAreas(dangerZones)
+
+                const route = await fetchTomTomRoute(start, end, { avoidAreas })
+                if (!active) return
+
+                clearRoute()
+                const L = (await import("leaflet")).default
+                routeLayer.current = L.polyline(
+                    route.points.map((p: LatLng) => [p.lat, p.lng]),
+                    { color: "#0ea5e9", weight: 5, opacity: 0.9 }
+                ).addTo(map.current)
+
+                const bounds = L.latLngBounds(route.points.map((p: LatLng) => [p.lat, p.lng]))
+                map.current.fitBounds(bounds, { padding: [40, 40] })
+            } catch (error) {
+                console.error("Failed to build safe route:", error)
+            }
+        }
+
+        buildRoute()
+
+        return () => {
+            active = false
+        }
+    }, [selectedTarget, userLocation])
 
     return <div ref={mapContainer} className="w-full h-full" />
 }

@@ -84,6 +84,13 @@ export const incidentsAPI = {
 
 // Alerts API
 export const alertsAPI = {
+    getAll: async (severity?: string) => {
+        const params = new URLSearchParams();
+        if (severity) params.append('severity', severity);
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return fetchAPI(`/alerts${query}`);
+    },
+
     getNearby: async (lat: number, lng: number, radius?: number) => {
         const params = new URLSearchParams({ lat: lat.toString(), lng: lng.toString() });
         if (radius) params.append('radius', radius.toString());

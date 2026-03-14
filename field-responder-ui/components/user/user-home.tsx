@@ -1,6 +1,6 @@
 "use client"
 
-import { Flame, Heart, Shield, AlertTriangle, MapPin, Clock, CheckCircle, Loader2 } from "lucide-react"
+import { Flame, Heart, Shield, AlertTriangle, MapPin, Clock, CheckCircle, Loader2, Droplets } from "lucide-react"
 import { useState, useEffect } from "react"
 import { incidentsAPI } from "@/lib/api"
 import { useWebSocket } from "@/hooks/use-websocket"
@@ -23,9 +23,9 @@ export default function UserHome({ onNavigateToReport, onNavigateToSafety, activ
     })
 
     const emergencyTypes = [
+        { id: "flood", icon: Droplets, label: "Flood", color: "bg-blue-500", hoverColor: "hover:bg-blue-600" },
         { id: "fire", icon: Flame, label: "Fire", color: "bg-red-500", hoverColor: "hover:bg-red-600" },
         { id: "medical", icon: Heart, label: "Medical", color: "bg-pink-500", hoverColor: "hover:bg-pink-600" },
-        { id: "police", icon: Shield, label: "Police", color: "bg-blue-500", hoverColor: "hover:bg-blue-600" },
         { id: "other", icon: AlertTriangle, label: "Other", color: "bg-orange-500", hoverColor: "hover:bg-orange-600" },
     ]
 

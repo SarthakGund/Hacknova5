@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Flame, Heart, Shield, AlertTriangle, Car, Zap, MapPin, Camera, Send, CheckCircle, Loader2 } from "lucide-react"
+import { Flame, Heart, Droplets, AlertTriangle, Car, Zap, MapPin, Camera, Send, CheckCircle, Loader2 } from "lucide-react"
 import { incidentsAPI } from "@/lib/api"
 import LocationPicker from "./location-picker"
 
@@ -56,9 +56,9 @@ export default function ReportIncident({ preSelectedType, onSubmit }: ReportInci
     const [showMap, setShowMap] = useState(false)
 
     const incidentTypes = [
+        { id: "flood", icon: Droplets, label: "Flood", color: "bg-blue-500" },
         { id: "fire", icon: Flame, label: "Fire", color: "bg-red-500" },
         { id: "medical", icon: Heart, label: "Medical", color: "bg-pink-500" },
-        { id: "police", icon: Shield, label: "Police", color: "bg-blue-500" },
         { id: "accident", icon: Car, label: "Accident", color: "bg-purple-500" },
         { id: "disaster", icon: Zap, label: "Disaster", color: "bg-yellow-500" },
         { id: "other", icon: AlertTriangle, label: "Other", color: "bg-orange-500" },
