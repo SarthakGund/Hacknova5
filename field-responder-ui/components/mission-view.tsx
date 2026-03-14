@@ -6,11 +6,13 @@ import MissionHeader from "@/components/mission-header"
 import MissionBriefing from "@/components/mission-briefing"
 import StatusBar from "@/components/status-bar"
 import ActionButtons from "@/components/action-buttons"
+import ChainMissions from "@/components/chain-missions"
 import { incidentsAPI, personnelAPI } from "@/lib/api"
 import { useWebSocket } from "@/hooks/use-websocket"
-import { Loader2 } from "lucide-react"
+import { Loader2, Link2, Wifi } from "lucide-react"
 
 export default function MissionView() {
+    const [missionTab, setMissionTab] = useState<"offchain" | "onchain">("offchain")
     const [activeIncident, setActiveIncident] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [status, setStatus] = useState<"en-route" | "arrived" | "complete">("en-route")
@@ -156,28 +158,60 @@ export default function MissionView() {
         }
     }
 
+    // Tab toggle shared header — always rendered
+    const TabToggle = (
+        <div className="flex flex-shrink-0 border-b border-border bg-card">
+            <button
+                onClick={() => setMissionTab("offchain")}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${missionTab === "offchain" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}
+            >
+                <Wifi className="w-3.5 h-3.5" />Active Mission
+            </button>
+            <button
+                onClick={() => setMissionTab("onchain")}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${missionTab === "onchain" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}
+            >
+                <Link2 className="w-3.5 h-3.5" />Chain Board
+            </button>
+        </div>
+    )
+
     if (loading) {
         return (
-            <div className="flex h-full items-center justify-center">
-                <Loader2 className="w-10 h-10 animate-spin text-primary" />
+            <div className="flex flex-col h-full w-full bg-background overflow-hidden">
+                {TabToggle}
+                <div className="flex flex-1 items-center justify-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                </div>
             </div>
         )
     }
 
-    if (!activeIncident) {
+    if (!activeIncident && missionTab === "offchain") {
         return (
-            <div className="flex h-full flex-col items-center justify-center p-6 text-center">
-                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
-                    <Loader2 className="w-10 h-10 text-muted-foreground" />
+            <div className="flex flex-col h-full w-full bg-background overflow-hidden">
+                {TabToggle}
+                <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
+                    <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
+                        <Loader2 className="w-10 h-10 text-muted-foreground" />
+                    </div>
+                    <h2 className="text-xl font-bold mb-2">No Active Mission</h2>
+                    <p className="text-muted-foreground text-sm">You don't have any missions assigned right now. Switch to Chain Board to browse on-chain missions.</p>
                 </div>
-                <h2 className="text-xl font-bold mb-2">No Active Mission</h2>
-                <p className="text-muted-foreground">You don't have any missions assigned right now. Check the incidents tab for new reports.</p>
             </div>
         )
     }
 
     return (
         <div className="flex flex-col h-full w-full bg-background overflow-hidden font-sans">
+            {TabToggle}
+
+            {missionTab === "onchain" ? (
+                <div className="flex-1 overflow-hidden">
+                    <ChainMissions />
+                </div>
+            ) : (
+            <>
             {/* Header with glassmorphism */}
             <div className="flex-shrink-0 z-40">
                 <MissionHeader status={status} activeIncident={activeIncident} />
@@ -207,6 +241,8 @@ export default function MissionView() {
                 onResolve={handleResolveIncident}
                 incidentId={activeIncident?.id}
             />
+            </>
+            )}
         </div>
     )
 }

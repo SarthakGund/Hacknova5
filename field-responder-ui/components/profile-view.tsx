@@ -1,10 +1,12 @@
 "use client"
 
-import { LogOut, ChevronRight, Moon, Sun } from "lucide-react"
+import { LogOut, ChevronRight, Moon, Sun, Wallet } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import WalletConnectBtn from "@/components/wallet-connect-btn"
+import PorCredentials from "@/components/por-credentials"
 
 export default function ProfileView() {
     const router = useRouter()
@@ -100,6 +102,16 @@ export default function ProfileView() {
                             </button>
                         </div>
                     )}
+                </div>
+
+                {/* Wallet & Proof-of-Relief */}
+                <div className="card-elevated rounded-2xl p-4 shadow-apple space-y-3">
+                    <div className="flex items-center gap-2 mb-1">
+                        <Wallet className="w-5 h-5 text-primary" />
+                        <span className="font-bold text-sm">Web3 Wallet</span>
+                    </div>
+                    <WalletConnectBtn />
+                    <PorCredentials />
                 </div>
 
                 {/* Menu Items - Sign Out Only */}

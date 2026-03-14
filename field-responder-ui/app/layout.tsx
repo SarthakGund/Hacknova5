@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ModeProvider } from "@/contexts/mode-context"
+import { Web3Provider } from "@/contexts/web3-context"
 import { PWARegister } from "@/components/pwa-register"
 
 import type { Viewport } from "next"
@@ -58,9 +59,11 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-background text-foreground">
         <PWARegister />
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-          <ModeProvider>
-            {children}
-          </ModeProvider>
+          <Web3Provider>
+            <ModeProvider>
+              {children}
+            </ModeProvider>
+          </Web3Provider>
         </ThemeProvider>
       </body>
     </html>

@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { Web3Provider } from "@/contexts/web3-context"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -41,7 +42,9 @@ export default function RootLayout({
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
       </head>
       <body className={`font-sans antialiased`} suppressHydrationWarning>
-        {children}
+        <Web3Provider>
+          {children}
+        </Web3Provider>
         <Analytics />
       </body>
     </html>
