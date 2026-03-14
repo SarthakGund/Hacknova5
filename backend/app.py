@@ -27,6 +27,7 @@ from routes.auth import auth_bp
 from routes.resources import resources_bp
 from routes.sos_mesh import sos_mesh_bp
 from routes.sms import sms_bp
+from routes.ai_coordinator import ai_coordinator_bp
 
 app.register_blueprint(auth_bp, url_prefix='/api')
 app.register_blueprint(incidents_bp, url_prefix='/api')
@@ -38,6 +39,7 @@ app.register_blueprint(notifications_bp, url_prefix='/api')
 app.register_blueprint(resources_bp, url_prefix='/api')
 app.register_blueprint(sos_mesh_bp, url_prefix='/api')
 app.register_blueprint(sms_bp, url_prefix='/api')
+app.register_blueprint(ai_coordinator_bp, url_prefix='/api')
 
 
 # Root endpoint

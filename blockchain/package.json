@@ -1,0 +1,24 @@
+{
+  "name": "resqnet-blockchain",
+  "version": "1.0.0",
+  "description": "ResQNet Protocol - Smart Contracts",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
+    "deploy:amoy": "hardhat run scripts/deploy.ts --network polygon_amoy",
+    "node": "hardhat node",
+    "clean": "hardhat clean"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.22.3",
+    "typescript": "^5.4.5"
+  }
+}
